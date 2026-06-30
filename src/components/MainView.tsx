@@ -5,10 +5,14 @@ import { AppItem, ProductMode, RemovalFailure, ScanItem, ScanStatus, ScanSummary
 interface MainViewProps {
   mode: ProductMode;
   app: AppItem | null;
+  apps: AppItem[];
+  searchQuery: string;
   summary: ScanSummary | null;
   scanStatus: ScanStatus;
   usingDesktopApi: boolean;
   onModeChange: (mode: ProductMode) => void;
+  onSelectApp: (app: AppItem) => void;
+  onSearchChange: (value: string) => void;
   onRunScan: () => void;
   onToggleItem: (itemId: string) => void;
   onToggleAll: () => void;
@@ -108,10 +112,14 @@ function HomePanel({ onModeChange }: Pick<MainViewProps, 'onModeChange'>) {
 export function MainView({
   mode,
   app,
+  apps,
+  searchQuery,
   summary,
   scanStatus,
   usingDesktopApi,
   onModeChange,
+  onSelectApp,
+  onSearchChange,
   onRunScan,
   onToggleItem,
   onToggleAll,
@@ -157,6 +165,57 @@ export function MainView({
         <HomePanel onModeChange={onModeChange} />
       ) : (
         <div className="mx-auto max-w-6xl">
+          {mode === 'uninstall' && (
+            <section className="mb-8 rounded-[36px] border border-white/80 bg-white/80 p-8 shadow-[0_30px_80px_rgba(15,23,42,0.08)] backdrop-blur">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                <div>
+                  <p className="text-[11px] font-medium uppercase tracking-[0.24em] text-slate-400">Installed apps</p>
+                  <h2 className="mt-3 text-2xl font-semibold text-slate-950">Pick the app you want to remove completely.</h2>
+                  <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
+                    Start by choosing an installed app. After that, run a deep scan to inspect the app bundle,
+                    support files, preferences, caches, hidden files and other leftovers tied to it.
+                  </p>
+                </div>
+
+                <input
+                  value={searchQuery}
+                  onChange={(event) => onSearchChange(event.target.value)}
+                  placeholder="Search installed apps"
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-300 lg:max-w-sm"
+                />
+              </div>
+
+              <div className="mt-5 max-h-[280px] space-y-2 overflow-y-auto pr-1">
+                {scanStatus.loadingApps ? (
+                  <div className="rounded-2xl bg-slate-50 px-4 py-4 text-sm text-slate-500">Loading app inventory...</div>
+                ) : apps.length ? (
+                  apps.map((entry) => {
+                    const active = app?.id === entry.id;
+                    return (
+                      <button
+                        key={entry.id}
+                        type="button"
+                        onClick={() => onSelectApp(entry)}
+                        className={`w-full rounded-2xl border px-4 py-4 text-left transition ${
+                          active
+                            ? 'border-slate-950 bg-slate-950 text-white'
+                            : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+                        }`}
+                      >
+                        <p className="text-sm font-semibold">{entry.name}</p>
+                        <p className={`mt-1 truncate text-xs ${active ? 'text-slate-300' : 'text-slate-500'}`}>{entry.appPath}</p>
+                      </button>
+                    );
+                  })
+                ) : (
+                  <div className="rounded-2xl bg-slate-50 px-4 py-4 text-sm text-slate-500">
+                    {searchQuery ? 'No apps match this search.' : 'No installed apps found.'}
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
+
           <section className="rounded-[36px] border border-white/80 bg-white/80 p-8 shadow-[0_30px_80px_rgba(15,23,42,0.08)] backdrop-blur">
             <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
               <div>
@@ -186,7 +245,7 @@ export function MainView({
               </div>
             </div>
 
-            <div className="mt-8 grid gap-4 lg:grid-cols-4">
+              <div className="mt-8 grid gap-4 lg:grid-cols-4">
               <div className="rounded-3xl bg-slate-50 p-5">
                 <p className="text-[11px] font-medium uppercase tracking-[0.24em] text-slate-400">Mode</p>
                 <p className="mt-3 text-lg font-semibold text-slate-950">{currentModeCopy?.eyebrow}</p>
@@ -210,8 +269,8 @@ export function MainView({
                     ? 'Real filesystem scan is active.'
                     : 'Frontend-only mode is active. This view uses mock data so the interface can be edited separately.'}
                 </p>
+                </div>
               </div>
-            </div>
 
             {!!summary?.inaccessibleRoots.length && (
               <div className="mt-6 rounded-3xl border border-amber-100 bg-amber-50 px-5 py-4 text-sm text-amber-900">
@@ -345,15 +404,7 @@ export function MainView({
                 </div>
               )}
             </section>
-          ) : (
-            <section className="mt-8 rounded-[36px] border border-white/80 bg-white/80 p-8 shadow-[0_30px_80px_rgba(15,23,42,0.08)] backdrop-blur">
-              <div className="rounded-3xl bg-slate-50 px-6 py-8 text-sm leading-6 text-slate-500">
-                {mode === 'uninstall'
-                  ? 'Choose an app from the sidebar or inventory, then run a deep scan.'
-                  : 'Run a scan to populate this view.'}
-              </div>
-            </section>
-          )}
+          ) : null}
         </div>
       )}
 

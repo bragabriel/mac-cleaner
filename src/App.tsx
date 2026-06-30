@@ -220,22 +220,23 @@ export default function App() {
     <div className="flex min-h-screen bg-[#eef1ea] text-slate-950">
       <Sidebar
         mode={mode}
-        apps={filteredApps}
-        searchQuery={searchQuery}
-        loading={scanStatus.loadingApps}
-        selectedAppId={selectedAppId}
         onModeChange={setMode}
-        onSelectApp={(app) => setSelectedAppId(app.id)}
-        onSearchChange={setSearchQuery}
       />
 
       <MainView
         mode={mode}
         app={selectedApp}
+        apps={filteredApps}
+        searchQuery={searchQuery}
         summary={summary}
         scanStatus={scanStatus}
         usingDesktopApi={usingDesktopApi}
         onModeChange={setMode}
+        onSelectApp={(app) => {
+          setSelectedAppId(app.id);
+          setMode('uninstall');
+        }}
+        onSearchChange={setSearchQuery}
         onRunScan={() => void runScan()}
         onToggleItem={toggleItem}
         onToggleAll={toggleAll}
