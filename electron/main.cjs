@@ -1,6 +1,6 @@
 const path = require('node:path');
 const { app, BrowserWindow, ipcMain, shell } = require('electron');
-const { listInstalledApps, scanAppResidues } = require('./service.cjs');
+const { listInstalledApps, moveResiduesToTrash, scanAppResidues } = require('./service.cjs');
 
 const DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL;
 
@@ -37,6 +37,7 @@ app.whenReady().then(() => {
   ipcMain.handle('apps:list', async () => listInstalledApps());
   ipcMain.handle('scan:app', async (_event, appItem) => scanAppResidues(appItem));
   ipcMain.handle('finder:reveal', async (_event, targetPath) => shell.showItemInFolder(targetPath));
+  ipcMain.handle('trash:move', async (_event, targetPaths) => moveResiduesToTrash(targetPaths));
   ipcMain.handle('permissions:open-settings', async () =>
     shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles'),
   );

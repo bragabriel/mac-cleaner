@@ -10,6 +10,8 @@ interface MainViewProps {
   onToggleAllResidues: () => void;
   onRevealResidue: (targetPath: string) => void;
   onOpenPrivacySettings: () => void;
+  onRemoveSelected: () => void;
+  removalSummary: { removedPaths: string[]; failedPaths: Array<{ path: string; reason: string }> } | null;
 }
 
 function formatSize(sizeBytes: number) {
@@ -33,6 +35,8 @@ export function MainView({
   onToggleAllResidues,
   onRevealResidue,
   onOpenPrivacySettings,
+  onRemoveSelected,
+  removalSummary,
 }: MainViewProps) {
   const selectedResidues = summary.residues.filter((item) => item.selected);
   const totalSelectedBytes = selectedResidues.reduce((total, item) => total + item.sizeBytes, 0);
@@ -141,13 +145,22 @@ export function MainView({
                 Review each candidate before sending anything to the Trash.
               </p>
             </div>
-            <button
-              onClick={onToggleAllResidues}
-              disabled={summary.residues.length === 0}
-              className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-400"
-            >
-              {selectedResidues.length === summary.residues.length ? 'Clear selection' : 'Select all'}
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={onToggleAllResidues}
+                disabled={summary.residues.length === 0}
+                className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-400"
+              >
+                {selectedResidues.length === summary.residues.length ? 'Clear selection' : 'Select all'}
+              </button>
+              <button
+                onClick={onRemoveSelected}
+                disabled={selectedResidues.length === 0 || scanStatus.removing}
+                className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-rose-500 disabled:cursor-not-allowed disabled:bg-slate-300"
+              >
+                {scanStatus.removing ? 'Moving...' : 'Move selected to Trash'}
+              </button>
+            </div>
           </div>
 
           <div className="mt-6 grid gap-4 md:grid-cols-3">
@@ -182,6 +195,23 @@ export function MainView({
               <p className="mt-2 leading-6">
                 The following roots reported permission issues: {summary.inaccessibleRoots.join(', ')}.
               </p>
+            </div>
+          ) : null}
+
+          {removalSummary ? (
+            <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-950">
+              <p className="font-semibold">
+                Removed {removalSummary.removedPaths.length} item(s); {removalSummary.failedPaths.length} failed.
+              </p>
+              {removalSummary.failedPaths.length > 0 ? (
+                <div className="mt-2 space-y-1">
+                  {removalSummary.failedPaths.slice(0, 6).map((item) => (
+                    <p key={`${item.path}:${item.reason}`}>
+                      {item.path}: {item.reason}
+                    </p>
+                  ))}
+                </div>
+              ) : null}
             </div>
           ) : null}
 

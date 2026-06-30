@@ -6,6 +6,8 @@ const { promisify } = require('node:util');
 
 const execFileAsync = promisify(execFile);
 const APPLICATION_ROOTS = ['/Applications', path.join(os.homedir(), 'Applications')];
+const APP_SUPPORT_DIR = path.join(os.homedir(), 'Library', 'Application Support', 'mac-cleaner');
+const REMOVAL_LOG_PATH = path.join(APP_SUPPORT_DIR, 'removal-history.jsonl');
 const RESIDUE_ROOTS = [
   path.join(os.homedir(), 'Library', 'Application Support'),
   path.join(os.homedir(), 'Library', 'Preferences'),
@@ -83,6 +85,10 @@ async function pathExists(targetPath) {
   } catch {
     return false;
   }
+}
+
+async function ensureDirectory(targetPath) {
+  await fs.mkdir(targetPath, { recursive: true });
 }
 
 function buildSearchTerms(appItem) {
@@ -247,9 +253,70 @@ async function scanAppResidues(appItem) {
   };
 }
 
+async function nextTrashPath(targetPath) {
+  const trashRoot = path.join(os.homedir(), '.Trash');
+  await ensureDirectory(trashRoot);
+
+  const parsed = path.parse(targetPath);
+  let attempt = 0;
+
+  while (attempt < 1000) {
+    const suffix = attempt === 0 ? '' : `-${Date.now()}-${attempt}`;
+    const candidate = path.join(trashRoot, `${parsed.name}${suffix}${parsed.ext}`);
+    if (!(await pathExists(candidate))) {
+      return candidate;
+    }
+    attempt += 1;
+  }
+
+  throw new Error(`Could not allocate trash path for ${targetPath}`);
+}
+
+async function appendRemovalLog(entry) {
+  await ensureDirectory(APP_SUPPORT_DIR);
+  await fs.appendFile(REMOVAL_LOG_PATH, `${JSON.stringify(entry)}\n`, 'utf8');
+}
+
+async function moveResiduesToTrash(targetPaths) {
+  const removedPaths = [];
+  const failedPaths = [];
+
+  for (const targetPath of targetPaths) {
+    try {
+      if (!isPathSafeToRemove(targetPath)) {
+        throw new Error('Path is outside the safe residue roots');
+      }
+
+      if (!(await pathExists(targetPath))) {
+        throw new Error('Path no longer exists');
+      }
+
+      const trashPath = await nextTrashPath(targetPath);
+      await fs.rename(targetPath, trashPath);
+      removedPaths.push(targetPath);
+      await appendRemovalLog({
+        removedAt: new Date().toISOString(),
+        originalPath: targetPath,
+        trashPath,
+      });
+    } catch (error) {
+      failedPaths.push({
+        path: targetPath,
+        reason: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+
+  return {
+    removedPaths,
+    failedPaths,
+  };
+}
+
 module.exports = {
   SAFE_REMOVAL_ROOTS,
   isPathSafeToRemove,
   listInstalledApps,
+  moveResiduesToTrash,
   scanAppResidues,
 };

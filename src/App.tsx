@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { MOCK_APPS } from './data';
 import { MainView } from './components/MainView';
 import { Sidebar } from './components/Sidebar';
-import type { AppItem, ScanStatus, ScanSummary } from './types';
+import type { AppItem, RemovalSummary, ScanStatus, ScanSummary } from './types';
 
 const EMPTY_SUMMARY: ScanSummary = {
   app: null,
@@ -22,6 +22,7 @@ export default function App() {
     removing: false,
   });
   const [summary, setSummary] = useState<ScanSummary>(EMPTY_SUMMARY);
+  const [removalSummary, setRemovalSummary] = useState<RemovalSummary | null>(null);
 
   const usingDesktopApi = Boolean(window.macCleaner?.listApps);
 
@@ -88,6 +89,7 @@ export default function App() {
       return;
     }
 
+    setRemovalSummary(null);
     setScanStatus((current) => ({ ...current, scanning: true }));
     try {
       const nextSummary = await window.macCleaner.scanApp(selectedApp);
@@ -124,6 +126,29 @@ export default function App() {
     void window.macCleaner?.openPrivacySettings?.();
   };
 
+  const handleRemoveSelected = async () => {
+    const selectedPaths = summary.residues.filter((residue) => residue.selected).map((residue) => residue.path);
+    if (selectedPaths.length === 0 || !window.macCleaner?.moveToTrash) {
+      return;
+    }
+
+    if (!window.confirm(`Move ${selectedPaths.length} selected item(s) to the Trash?`)) {
+      return;
+    }
+
+    setScanStatus((current) => ({ ...current, removing: true }));
+    try {
+      const nextRemovalSummary = await window.macCleaner.moveToTrash(selectedPaths);
+      setRemovalSummary(nextRemovalSummary);
+      setSummary((current) => ({
+        ...current,
+        residues: current.residues.filter((residue) => !nextRemovalSummary.removedPaths.includes(residue.path)),
+      }));
+    } finally {
+      setScanStatus((current) => ({ ...current, removing: false }));
+    }
+  };
+
   return (
     <div className="flex min-h-screen bg-slate-100 text-slate-950">
       <Sidebar
@@ -151,6 +176,8 @@ export default function App() {
         onToggleAllResidues={handleToggleAllResidues}
         onRevealResidue={handleRevealResidue}
         onOpenPrivacySettings={handleOpenPrivacySettings}
+        onRemoveSelected={handleRemoveSelected}
+        removalSummary={removalSummary}
       />
     </div>
   );

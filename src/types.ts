@@ -42,6 +42,7 @@ export interface DesktopApi {
   isDesktop: boolean;
   listApps?: () => Promise<AppItem[]>;
   scanApp?: (app: AppItem) => Promise<ScanSummary>;
+  moveToTrash?: (targetPaths: string[]) => Promise<RemovalSummary>;
   revealPath?: (targetPath: string) => Promise<void>;
   openPrivacySettings?: () => Promise<void>;
 }
