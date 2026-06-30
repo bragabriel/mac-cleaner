@@ -1,28 +1,33 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { MainView } from './components/MainView';
-import { Sidebar } from './components/Sidebar';
-import { MOCK_APPS, MOCK_ORPHAN_SUMMARY, MOCK_SYSTEM_SUMMARY, MOCK_UNINSTALL_SUMMARY } from './data';
-import { AppItem, ProductMode, RemovalFailure, ScanItem, ScanStatus, ScanSummary } from './types';
+import {useEffect, useMemo, useRef, useState} from 'react';
+import {MainView} from './components/MainView';
+import {Sidebar} from './components/Sidebar';
+import {MOCK_APPS, MOCK_ORPHAN_SUMMARY, MOCK_SYSTEM_SUMMARY, MOCK_UNINSTALL_SUMMARY} from './data';
+import type {AppItem, CleanupMode, ProductMode, RemovalFailure, ScanItem, ScanStatus, ScanSummary} from './types';
 
 const idleStatus: ScanStatus = {
   loadingApps: false,
   scanning: false,
   removing: false,
   progress: 0,
-  progressLabel: 'Idle',
+  progressLabel: '',
 };
+
+function normalizeSummary(nextSummary: ScanSummary): ScanSummary {
+  return {
+    ...nextSummary,
+    items: nextSummary.items.map((item) => ({...item, selected: item.selected ?? true})),
+  };
+}
 
 export default function App() {
   const usingDesktopApi = Boolean(window.macCleaner?.listApps);
   const [mode, setMode] = useState<ProductMode>('home');
+  const [cleanupMode, setCleanupMode] = useState<CleanupMode>('residues');
   const [apps, setApps] = useState<AppItem[]>(MOCK_APPS);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedAppId, setSelectedAppId] = useState<string | null>(MOCK_APPS[0]?.id ?? null);
   const [summary, setSummary] = useState<ScanSummary | null>(null);
-  const [scanStatus, setScanStatus] = useState<ScanStatus>({
-    ...idleStatus,
-    loadingApps: usingDesktopApi,
-  });
+  const [scanStatus, setScanStatus] = useState<ScanStatus>(idleStatus);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [lastFailures, setLastFailures] = useState<RemovalFailure[]>([]);
   const progressIntervalRef = useRef<number | null>(null);
@@ -31,7 +36,7 @@ export default function App() {
     let active = true;
 
     const loadApps = async () => {
-      setScanStatus((current) => ({ ...current, loadingApps: true }));
+      setScanStatus((current) => ({...current, loadingApps: true}));
 
       try {
         const nextApps = window.macCleaner?.listApps ? await window.macCleaner.listApps() : MOCK_APPS;
@@ -43,7 +48,7 @@ export default function App() {
         setSelectedAppId((current) => current ?? nextApps[0]?.id ?? null);
       } finally {
         if (active) {
-          setScanStatus((current) => ({ ...current, loadingApps: false }));
+          setScanStatus((current) => ({...current, loadingApps: false}));
         }
       }
     };
@@ -63,16 +68,30 @@ export default function App() {
     };
   }, []);
 
+  useEffect(() => {
+    setSummary(null);
+    setConfirmOpen(false);
+    setLastFailures([]);
+    setScanStatus((current) => ({...current, progress: 0, progressLabel: ''}));
+  }, [mode]);
+
   const filteredApps = useMemo(() => {
-    if (!searchQuery.trim()) {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) {
       return apps;
     }
 
-    const query = searchQuery.trim().toLowerCase();
-    return apps.filter((app) => app.name.toLowerCase().includes(query));
+    return apps.filter((app) => {
+      const haystack = [app.name, app.bundleId ?? '', app.appPath].join(' ').toLowerCase();
+      return haystack.includes(query);
+    });
   }, [apps, searchQuery]);
 
   const selectedApp = apps.find((app) => app.id === selectedAppId) ?? null;
+
+  const updateSummaryItems = (updater: (items: ScanItem[]) => ScanItem[]) => {
+    setSummary((current) => (current ? {...current, items: updater(current.items)} : current));
+  };
 
   const beginProgress = (label: string) => {
     if (progressIntervalRef.current) {
@@ -114,23 +133,18 @@ export default function App() {
     }));
   };
 
-  const normalizedSummary = (nextSummary: ScanSummary): ScanSummary => ({
-    ...nextSummary,
-    items: nextSummary.items.map((item) => ({ ...item, selected: item.selected ?? true })),
-  });
-
   const runScan = async () => {
     setLastFailures([]);
     setConfirmOpen(false);
 
-    if (mode === 'home') {
+    if (mode !== 'uninstall' && mode !== 'cleanup') {
       return;
     }
 
     beginProgress(
       mode === 'uninstall'
         ? 'Scanning app bundle and residues...'
-        : mode === 'residues'
+        : cleanupMode === 'residues'
           ? 'Scanning for orphan residues...'
           : 'Scanning system junk categories...',
     );
@@ -145,32 +159,28 @@ export default function App() {
         }
 
         nextSummary = window.macCleaner?.scanApp ? await window.macCleaner.scanApp(selectedApp) : MOCK_UNINSTALL_SUMMARY;
-      } else if (mode === 'residues') {
+      } else if (cleanupMode === 'residues') {
         nextSummary = window.macCleaner?.scanOrphans ? await window.macCleaner.scanOrphans() : MOCK_ORPHAN_SUMMARY;
       } else {
         nextSummary = window.macCleaner?.scanSystemJunk ? await window.macCleaner.scanSystemJunk() : MOCK_SYSTEM_SUMMARY;
       }
 
-      setSummary(normalizedSummary(nextSummary));
-      finishProgress('Scan complete');
+      setSummary(normalizeSummary(nextSummary));
+      finishProgress(`Scan complete: ${nextSummary.items.length} items ready for review.`);
     } catch (error) {
       setSummary(null);
-      finishProgress(error instanceof Error ? error.message : 'Scan failed');
+      finishProgress(error instanceof Error ? error.message : 'Scan failed.');
     }
   };
 
-  const updateSummaryItems = (updater: (items: ScanItem[]) => ScanItem[]) => {
-    setSummary((current) => (current ? { ...current, items: updater(current.items) } : current));
-  };
-
   const toggleItem = (itemId: string) => {
-    updateSummaryItems((items) => items.map((item) => (item.id === itemId ? { ...item, selected: !item.selected } : item)));
+    updateSummaryItems((items) => items.map((item) => (item.id === itemId ? {...item, selected: !item.selected} : item)));
   };
 
   const toggleAll = () => {
     updateSummaryItems((items) => {
       const shouldSelectAll = items.some((item) => !item.selected);
-      return items.map((item) => ({ ...item, selected: shouldSelectAll }));
+      return items.map((item) => ({...item, selected: shouldSelectAll}));
     });
   };
 
@@ -201,56 +211,73 @@ export default function App() {
       return;
     }
 
-    setScanStatus((current) => ({ ...current, removing: true, progressLabel: 'Removing selected items...' }));
+    setScanStatus((current) => ({...current, removing: true, progressLabel: 'Removing selected items...'}));
 
     try {
-      const result = window.macCleaner?.removeItems
-        ? await window.macCleaner.removeItems(selectedPaths)
-        : { removedPaths: selectedPaths, failedPaths: [] };
+      const result = window.macCleaner?.removePaths
+        ? await window.macCleaner.removePaths(selectedPaths)
+        : {removedPaths: selectedPaths, failedPaths: []};
 
       setLastFailures(result.failedPaths);
       updateSummaryItems((items) => items.filter((item) => !result.removedPaths.includes(item.path)));
-    } finally {
-      setScanStatus((current) => ({ ...current, removing: false, progressLabel: 'Removal finished' }));
       setConfirmOpen(false);
+
+      setScanStatus((current) => ({
+        ...current,
+        removing: false,
+        progress: 100,
+        progressLabel: result.failedPaths.length
+          ? `Removed ${result.removedPaths.length} items. ${result.failedPaths.length} failed.`
+          : `Removed ${result.removedPaths.length} items.`,
+      }));
+    } catch (error) {
+      setScanStatus((current) => ({
+        ...current,
+        removing: false,
+        progressLabel: error instanceof Error ? error.message : 'Removal failed.',
+      }));
     }
   };
 
   return (
-    <div className="flex min-h-screen bg-[#eef1ea] text-slate-950">
-      <Sidebar
-        mode={mode}
-        onModeChange={setMode}
-      />
+    <div className="flex min-h-screen bg-transparent text-[color:var(--color-text-primary)]">
+      <Sidebar mode={mode} onModeChange={setMode} />
 
       <MainView
         mode={mode}
+        cleanupMode={cleanupMode}
         app={selectedApp}
         apps={filteredApps}
         searchQuery={searchQuery}
         summary={summary}
         scanStatus={scanStatus}
         usingDesktopApi={usingDesktopApi}
-        onModeChange={setMode}
+        onModeChange={(nextMode) => {
+          setMode(nextMode);
+          if (nextMode === 'uninstall' && !selectedAppId) {
+            setSelectedAppId(apps[0]?.id ?? null);
+          }
+        }}
+        onCleanupModeChange={setCleanupMode}
         onSelectApp={(app) => {
           setSelectedAppId(app.id);
           setMode('uninstall');
         }}
         onSearchChange={setSearchQuery}
-        onRunScan={() => void runScan()}
+        onRunScan={runScan}
         onToggleItem={toggleItem}
         onToggleAll={toggleAll}
-        onOpenPrivacySettings={() => void window.macCleaner?.openPrivacySettings?.()}
-        onCopyPath={(targetPath) => void handleCopyPath(targetPath)}
-        onRevealPath={(targetPath) => void handleRevealPath(targetPath)}
-        onOpenPath={(targetPath) => void handleOpenPath(targetPath)}
+        onOpenPrivacySettings={() => window.macCleaner?.openPrivacySettings?.()}
+        onCopyPath={handleCopyPath}
+        onRevealPath={handleRevealPath}
+        onOpenPath={handleOpenPath}
         onRemoveSelected={handleRemoveSelected}
         confirmState={{
           open: confirmOpen,
           selectedItems: summary?.items.filter((item) => item.selected) ?? [],
           failures: lastFailures,
         }}
-        onConfirmRemoval={() => void confirmRemoval()}
+        onConfirmRemoval={confirmRemoval}
         onCancelRemoval={() => setConfirmOpen(false)}
       />
     </div>

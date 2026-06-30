@@ -1,50 +1,102 @@
-import { Grid2X2, HardDriveDownload, Search, Sparkles } from 'lucide-react';
-import { ProductMode } from '../types';
+import {AppWindowMac, Home, Settings, Sparkles, ToggleRight} from 'lucide-react';
+import type {ProductMode} from '../types';
+
+const navItems: Array<{
+  mode: ProductMode;
+  label: string;
+  subtitle: string;
+  icon: typeof Home;
+}> = [
+  {
+    mode: 'home',
+    label: 'Home',
+    subtitle: 'Workspace overview',
+    icon: Home,
+  },
+  {
+    mode: 'uninstall',
+    label: 'Uninstall Apps',
+    subtitle: 'Remove app bundles and leftovers',
+    icon: AppWindowMac,
+  },
+  {
+    mode: 'cleanup',
+    label: 'Cleanup',
+    subtitle: 'Orphans and system junk',
+    icon: Sparkles,
+  },
+  {
+    mode: 'startup',
+    label: 'Startup Items',
+    subtitle: 'Inspect what boots with macOS',
+    icon: ToggleRight,
+  },
+  {
+    mode: 'settings',
+    label: 'Settings',
+    subtitle: 'Permissions and behavior',
+    icon: Settings,
+  },
+];
 
 interface SidebarProps {
   mode: ProductMode;
   onModeChange: (mode: ProductMode) => void;
 }
 
-const navItems: Array<{ mode: ProductMode; label: string; icon: typeof Grid2X2; subtitle: string }> = [
-  { mode: 'home', label: 'Home', icon: Grid2X2, subtitle: 'Choose a cleaning flow' },
-  { mode: 'uninstall', label: 'Uninstall App', icon: HardDriveDownload, subtitle: 'Remove an app completely' },
-  { mode: 'residues', label: 'Residues', icon: Search, subtitle: 'Find leftovers from removed apps' },
-  { mode: 'system', label: 'System', icon: Sparkles, subtitle: 'Clear generic system junk' },
-];
-
-export function Sidebar({
-  mode,
-  onModeChange,
-}: SidebarProps) {
+export function Sidebar({mode, onModeChange}: SidebarProps) {
   return (
-    <aside className="flex w-[320px] flex-col border-r border-black/5 bg-[#f7f7f4] px-5 py-6">
-      <div>
-        <p className="text-[11px] font-medium uppercase tracking-[0.28em] text-slate-400">Mac Cleaner</p>
-        <h1 className="mt-3 text-2xl font-semibold text-slate-950">Deep uninstall, residues and system cleanup.</h1>
-      </div>
+    <aside className="hidden w-[284px] shrink-0 border-r border-white/8 bg-[#101114] text-white lg:flex">
+      <div className="flex min-h-screen w-full flex-col">
+        <div className="border-b border-white/8 px-5 py-5">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/42">Mac Cleaner</p>
+          <h1 className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-white">Column Workspace</h1>
+          <p className="mt-3 text-sm leading-6 text-white/58">
+            Navegação hierárquica por colunas, como Finder, sem trocar de página.
+          </p>
+        </div>
 
-      <nav className="mt-8 space-y-2">
-        {navItems.map(({ mode: itemMode, label, icon: Icon, subtitle }) => {
-          const active = mode === itemMode;
-          return (
-            <button
-              key={itemMode}
-              type="button"
-              onClick={() => onModeChange(itemMode)}
-              className={`flex w-full items-start gap-3 rounded-2xl px-4 py-3 text-left transition ${
-                active ? 'bg-slate-950 text-white shadow-lg shadow-slate-950/10' : 'bg-white/70 text-slate-900 hover:bg-white'
-              }`}
-            >
-              <Icon className={`mt-0.5 h-5 w-5 ${active ? 'text-white' : 'text-slate-500'}`} />
-              <div>
-                <p className="text-sm font-semibold">{label}</p>
-                <p className={`mt-1 text-xs ${active ? 'text-slate-300' : 'text-slate-500'}`}>{subtitle}</p>
-              </div>
-            </button>
-          );
-        })}
-      </nav>
+        <nav className="flex-1 px-3 py-4">
+          {navItems.map(({mode: itemMode, label, subtitle, icon: Icon}) => {
+            const active = mode === itemMode;
+
+            return (
+              <button
+                key={itemMode}
+                type="button"
+                onClick={() => onModeChange(itemMode)}
+                className={[
+                  'mb-2 flex w-full items-center gap-3 rounded-[18px] border px-4 py-3 text-left transition',
+                  active
+                    ? 'border-[#8e82ff] bg-[#1b1d26] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]'
+                    : 'border-transparent bg-transparent hover:border-white/8 hover:bg-white/[0.04]',
+                ].join(' ')}
+              >
+                <div
+                  className={[
+                    'flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border',
+                    active ? 'border-white/12 bg-[#7263FF] text-white' : 'border-white/8 bg-white/[0.04] text-white/70',
+                  ].join(' ')}
+                >
+                  <Icon className="h-4 w-4" />
+                </div>
+
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold tracking-[-0.02em] text-white">{label}</p>
+                  <p className="mt-1 truncate text-xs text-white/44">{subtitle}</p>
+                </div>
+              </button>
+            );
+          })}
+        </nav>
+
+        <div className="border-t border-white/8 px-5 py-4">
+          <div className="rounded-[18px] border border-white/8 bg-white/[0.04] px-4 py-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/36">Flow</p>
+            <p className="mt-3 text-sm leading-6 text-white/58">Sidebar fixa, cada clique abre mais uma coluna à direita.</p>
+          </div>
+        </div>
+      </div>
     </aside>
   );
 }

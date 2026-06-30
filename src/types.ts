@@ -1,6 +1,8 @@
-export type ProductMode = 'home' | 'uninstall' | 'residues' | 'system';
+export type ProductMode = 'home' | 'uninstall' | 'cleanup' | 'startup' | 'settings';
 
-export type AppSource = 'installed' | 'residue' | 'system' | 'mock';
+export type CleanupMode = 'residues' | 'system';
+
+export type AppSource = 'mock' | 'system';
 
 export type ConfidenceLevel = 'high' | 'medium' | 'low';
 
@@ -9,12 +11,10 @@ export type ScanItemCategory =
   | 'application-support'
   | 'preferences'
   | 'caches'
+  | 'logs'
   | 'containers'
   | 'group-containers'
-  | 'logs'
   | 'saved-state'
-  | 'hidden'
-  | 'system'
   | 'other';
 
 export interface AppItem {
@@ -35,29 +35,19 @@ export interface ScanItem {
   reason: string;
   appName: string | null;
   sizeBytes: number;
-  modifiedAt: string | null;
+  modifiedAt: string;
   isDirectory: boolean;
-  selected: boolean;
+  selected?: boolean;
 }
 
 export interface ScanSummary {
-  mode: Exclude<ProductMode, 'home'>;
+  mode: 'uninstall' | CleanupMode;
   title: string;
   subtitle: string;
   app: AppItem | null;
   items: ScanItem[];
   scannedRoots: string[];
   inaccessibleRoots: string[];
-}
-
-export interface RemovalFailure {
-  path: string;
-  message: string;
-}
-
-export interface RemovalSummary {
-  removedPaths: string[];
-  failedPaths: RemovalFailure[];
 }
 
 export interface ScanStatus {
@@ -68,12 +58,22 @@ export interface ScanStatus {
   progressLabel: string;
 }
 
+export interface RemovalFailure {
+  path: string;
+  message: string;
+}
+
+export interface RemovalResult {
+  removedPaths: string[];
+  failedPaths: RemovalFailure[];
+}
+
 export interface DesktopApi {
   listApps?: () => Promise<AppItem[]>;
   scanApp?: (app: AppItem) => Promise<ScanSummary>;
   scanOrphans?: () => Promise<ScanSummary>;
   scanSystemJunk?: () => Promise<ScanSummary>;
-  removeItems?: (targetPaths: string[]) => Promise<RemovalSummary>;
+  removePaths?: (targetPaths: string[]) => Promise<RemovalResult>;
   revealPath?: (targetPath: string) => Promise<void>;
   openPath?: (targetPath: string) => Promise<void>;
   openPrivacySettings?: () => Promise<void>;
