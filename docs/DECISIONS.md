@@ -40,7 +40,7 @@
 | DONE | Direct removal | implementar remocao real apos selecao | `docs/next-steps/06-PRD-direct-removal.md` |
 | DONE | MVP packaging | fechar uma build testavel para Mac | `docs/next-steps/07-PRD-mvp-packaging.md` |
 | DONE | Uninstall app flow | transformar o produto em desinstalador profundo | `docs/next-steps/08-PRD-uninstall-app-flow.md` |
-| TODO | Orphan residues flow | criar a experiencia de residuos de apps removidos | `docs/next-steps/09-PRD-orphan-residues-flow.md` |
+| DONE | Orphan residues flow | criar a experiencia de residuos de apps removidos | `docs/next-steps/09-PRD-orphan-residues-flow.md` |
 | TODO | System junk flow | mapear a terceira aba de limpeza generica | `docs/next-steps/10-PRD-system-junk-flow.md` |
 | DONE | Minimal home and navigation | reduzir confusao com home e navegacao claras | `docs/next-steps/11-PRD-home-and-navigation.md` |
 | DONE | Results model and progress UX | exibir progresso, confianca e detalhes expansivos | `docs/next-steps/12-PRD-results-and-progress-ux.md` |
