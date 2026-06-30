@@ -36,6 +36,7 @@ function createWindow() {
 app.whenReady().then(() => {
   ipcMain.handle('apps:list', async () => listInstalledApps());
   ipcMain.handle('scan:app', async (_event, appItem) => scanAppResidues(appItem));
+  ipcMain.handle('finder:reveal', async (_event, targetPath) => shell.showItemInFolder(targetPath));
   createWindow();
 
   app.on('activate', () => {

@@ -97,6 +97,29 @@ export default function App() {
     }
   };
 
+  const handleToggleResidue = (residueId: string) => {
+    setSummary((current) => ({
+      ...current,
+      residues: current.residues.map((residue) =>
+        residue.id === residueId ? { ...residue, selected: !residue.selected } : residue,
+      ),
+    }));
+  };
+
+  const handleToggleAllResidues = () => {
+    setSummary((current) => {
+      const shouldSelect = current.residues.some((residue) => !residue.selected);
+      return {
+        ...current,
+        residues: current.residues.map((residue) => ({ ...residue, selected: shouldSelect })),
+      };
+    });
+  };
+
+  const handleRevealResidue = (targetPath: string) => {
+    void window.macCleaner?.revealPath?.(targetPath);
+  };
+
   return (
     <div className="flex min-h-screen bg-slate-100 text-slate-950">
       <Sidebar
@@ -120,6 +143,9 @@ export default function App() {
         summary={summary}
         usingDesktopApi={usingDesktopApi}
         onScan={handleScan}
+        onToggleResidue={handleToggleResidue}
+        onToggleAllResidues={handleToggleAllResidues}
+        onRevealResidue={handleRevealResidue}
       />
     </div>
   );
