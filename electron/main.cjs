@@ -37,6 +37,9 @@ app.whenReady().then(() => {
   ipcMain.handle('apps:list', async () => listInstalledApps());
   ipcMain.handle('scan:app', async (_event, appItem) => scanAppResidues(appItem));
   ipcMain.handle('finder:reveal', async (_event, targetPath) => shell.showItemInFolder(targetPath));
+  ipcMain.handle('permissions:open-settings', async () =>
+    shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles'),
+  );
   createWindow();
 
   app.on('activate', () => {

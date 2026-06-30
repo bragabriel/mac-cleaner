@@ -120,6 +120,10 @@ export default function App() {
     void window.macCleaner?.revealPath?.(targetPath);
   };
 
+  const handleOpenPrivacySettings = () => {
+    void window.macCleaner?.openPrivacySettings?.();
+  };
+
   return (
     <div className="flex min-h-screen bg-slate-100 text-slate-950">
       <Sidebar
@@ -146,6 +150,7 @@ export default function App() {
         onToggleResidue={handleToggleResidue}
         onToggleAllResidues={handleToggleAllResidues}
         onRevealResidue={handleRevealResidue}
+        onOpenPrivacySettings={handleOpenPrivacySettings}
       />
     </div>
   );

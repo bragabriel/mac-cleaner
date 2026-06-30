@@ -43,4 +43,5 @@ export interface DesktopApi {
   listApps?: () => Promise<AppItem[]>;
   scanApp?: (app: AppItem) => Promise<ScanSummary>;
   revealPath?: (targetPath: string) => Promise<void>;
+  openPrivacySettings?: () => Promise<void>;
 }

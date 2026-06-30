@@ -9,6 +9,7 @@ interface MainViewProps {
   onToggleResidue: (residueId: string) => void;
   onToggleAllResidues: () => void;
   onRevealResidue: (targetPath: string) => void;
+  onOpenPrivacySettings: () => void;
 }
 
 function formatSize(sizeBytes: number) {
@@ -31,6 +32,7 @@ export function MainView({
   onToggleResidue,
   onToggleAllResidues,
   onRevealResidue,
+  onOpenPrivacySettings,
 }: MainViewProps) {
   const selectedResidues = summary.residues.filter((item) => item.selected);
   const totalSelectedBytes = selectedResidues.reduce((total, item) => total + item.sizeBytes, 0);
@@ -75,6 +77,24 @@ export function MainView({
         </section>
 
         <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-950">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <p className="font-semibold">Safety boundary</p>
+                <p className="mt-1 leading-6">
+                  Mac Cleaner only inspects and later removes entries inside `~/Library` residue roots. If the scan
+                  reports blocked roots, grant Full Disk Access and rerun the scan.
+                </p>
+              </div>
+              <button
+                onClick={onOpenPrivacySettings}
+                className="rounded-xl border border-amber-300 bg-white px-4 py-2 text-sm font-semibold text-amber-950 transition hover:bg-amber-100"
+              >
+                Open Privacy Settings
+              </button>
+            </div>
+          </div>
+
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <p className="text-sm font-semibold text-slate-900">Residue scan</p>
@@ -153,6 +173,15 @@ export function MainView({
                   <p key={warning}>{warning}</p>
                 ))}
               </div>
+            </div>
+          ) : null}
+
+          {summary.inaccessibleRoots.length > 0 ? (
+            <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+              <p className="font-semibold">Full scan blocked by macOS permissions</p>
+              <p className="mt-2 leading-6">
+                The following roots reported permission issues: {summary.inaccessibleRoots.join(', ')}.
+              </p>
             </div>
           ) : null}
 

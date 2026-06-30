@@ -15,6 +15,7 @@ const RESIDUE_ROOTS = [
   path.join(os.homedir(), 'Library', 'Logs'),
   path.join(os.homedir(), 'Library', 'Saved Application State'),
 ];
+const SAFE_REMOVAL_ROOTS = [...RESIDUE_ROOTS];
 
 function normalizeAppName(bundlePath) {
   return path.basename(bundlePath, '.app');
@@ -125,6 +126,10 @@ function categoryForPath(targetPath) {
   return match?.[1] ?? 'Other';
 }
 
+function isPathSafeToRemove(targetPath) {
+  return SAFE_REMOVAL_ROOTS.some((rootPath) => targetPath === rootPath || targetPath.startsWith(`${rootPath}/`));
+}
+
 async function findMatches(rootPath, searchTerms) {
   if (!(await pathExists(rootPath))) {
     return { matches: [], warnings: [] };
@@ -156,6 +161,10 @@ async function findMatches(rootPath, searchTerms) {
 }
 
 async function buildResidueItem(targetPath) {
+  if (!isPathSafeToRemove(targetPath)) {
+    throw new Error(`Unsafe residue path: ${targetPath}`);
+  }
+
   const stats = await fs.stat(targetPath);
   return {
     id: targetPath,
@@ -239,6 +248,8 @@ async function scanAppResidues(appItem) {
 }
 
 module.exports = {
+  SAFE_REMOVAL_ROOTS,
+  isPathSafeToRemove,
   listInstalledApps,
   scanAppResidues,
 };
