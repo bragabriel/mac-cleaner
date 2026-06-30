@@ -1,81 +1,107 @@
 const fs = require('node:fs/promises');
-const os = require('node:os');
 const path = require('node:path');
+const os = require('node:os');
 const { execFile } = require('node:child_process');
 const { promisify } = require('node:util');
 
 const execFileAsync = promisify(execFile);
-const APPLICATION_ROOTS = ['/Applications', path.join(os.homedir(), 'Applications')];
-const APP_SUPPORT_DIR = path.join(os.homedir(), 'Library', 'Application Support', 'mac-cleaner');
-const REMOVAL_LOG_PATH = path.join(APP_SUPPORT_DIR, 'removal-history.jsonl');
+
+const HOME = os.homedir();
+const APPLICATION_ROOTS = ['/Applications', path.join(HOME, 'Applications')];
+const USER_LIBRARY = path.join(HOME, 'Library');
 const RESIDUE_ROOTS = [
-  path.join(os.homedir(), 'Library', 'Application Support'),
-  path.join(os.homedir(), 'Library', 'Preferences'),
-  path.join(os.homedir(), 'Library', 'Caches'),
-  path.join(os.homedir(), 'Library', 'Containers'),
-  path.join(os.homedir(), 'Library', 'Group Containers'),
-  path.join(os.homedir(), 'Library', 'Logs'),
-  path.join(os.homedir(), 'Library', 'Saved Application State'),
+  { category: 'application-support', root: path.join(USER_LIBRARY, 'Application Support') },
+  { category: 'preferences', root: path.join(USER_LIBRARY, 'Preferences') },
+  { category: 'caches', root: path.join(USER_LIBRARY, 'Caches') },
+  { category: 'containers', root: path.join(USER_LIBRARY, 'Containers') },
+  { category: 'group-containers', root: path.join(USER_LIBRARY, 'Group Containers') },
+  { category: 'logs', root: path.join(USER_LIBRARY, 'Logs') },
+  { category: 'saved-state', root: path.join(USER_LIBRARY, 'Saved Application State') },
 ];
-const SAFE_REMOVAL_ROOTS = [...RESIDUE_ROOTS];
+const SYSTEM_JUNK_ROOTS = [
+  { category: 'caches', root: path.join(USER_LIBRARY, 'Caches') },
+  { category: 'logs', root: path.join(USER_LIBRARY, 'Logs') },
+];
+const SAFE_REMOVE_ROOTS = [...APPLICATION_ROOTS, ...RESIDUE_ROOTS.map((entry) => entry.root)];
 
-function normalizeAppName(bundlePath) {
-  return path.basename(bundlePath, '.app');
+function normalizeName(input) {
+  return input
+    .replace(/\.app$/i, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '');
 }
 
-async function readDirectorySafe(directoryPath) {
-  try {
-    return await fs.readdir(directoryPath, { withFileTypes: true });
-  } catch {
-    return [];
-  }
+function toDisplayName(input) {
+  return input
+    .replace(/\.app$/i, '')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-async function collectAppBundles(rootPath, depth = 0, maxDepth = 2, buckets = new Set()) {
-  const entries = await readDirectorySafe(rootPath);
-
-  for (const entry of entries) {
-    if (!entry.isDirectory()) {
-      continue;
-    }
-
-    const fullPath = path.join(rootPath, entry.name);
-    if (entry.name.endsWith('.app')) {
-      buckets.add(fullPath);
-      continue;
-    }
-
-    if (depth < maxDepth) {
-      await collectAppBundles(fullPath, depth + 1, maxDepth, buckets);
-    }
-  }
-
-  return buckets;
+function basenameWithoutExtension(targetPath) {
+  const base = path.basename(targetPath);
+  return base.endsWith('.app') ? base.slice(0, -4) : base.replace(path.extname(base), '');
 }
 
-async function readBundleId(appPath) {
-  try {
-    const { stdout } = await execFileAsync('mdls', [
-      '-raw',
-      '-name',
-      'kMDItemCFBundleIdentifier',
-      appPath,
-    ]);
-    const bundleId = stdout.trim();
-    return bundleId && bundleId !== '(null)' ? bundleId : null;
-  } catch {
-    return null;
+function getCategoryFromPath(targetPath) {
+  if (targetPath.endsWith('.app')) {
+    return 'application';
   }
+
+  if (targetPath.includes('/Application Support/')) {
+    return 'application-support';
+  }
+
+  if (targetPath.includes('/Preferences/')) {
+    return 'preferences';
+  }
+
+  if (targetPath.includes('/Caches/')) {
+    return 'caches';
+  }
+
+  if (targetPath.includes('/Containers/')) {
+    return 'containers';
+  }
+
+  if (targetPath.includes('/Group Containers/')) {
+    return 'group-containers';
+  }
+
+  if (targetPath.includes('/Logs/')) {
+    return 'logs';
+  }
+
+  if (targetPath.includes('/Saved Application State/')) {
+    return 'saved-state';
+  }
+
+  if (path.basename(targetPath).startsWith('.')) {
+    return 'hidden';
+  }
+
+  return 'other';
 }
 
-async function readSizeBytes(appPath) {
-  try {
-    const { stdout } = await execFileAsync('du', ['-sk', appPath]);
-    const sizeKb = Number.parseInt(stdout.trim().split(/\s+/)[0] ?? '0', 10);
-    return Number.isFinite(sizeKb) ? sizeKb * 1024 : 0;
-  } catch {
-    return 0;
+function confidenceForPath(targetPath, appName, terms) {
+  const lowerPath = targetPath.toLowerCase();
+  const normalizedBase = normalizeName(path.basename(targetPath));
+
+  if (terms.some((term) => term.length > 3 && normalizedBase === normalizeName(term))) {
+    return 'high';
   }
+
+  if (terms.some((term) => term.length > 3 && (lowerPath.includes(term) || normalizeName(lowerPath).includes(normalizeName(term))))) {
+    return 'high';
+  }
+
+  if (appName && lowerPath.includes(appName.toLowerCase())) {
+    return 'medium';
+  }
+
+  return path.basename(targetPath).startsWith('.') ? 'low' : 'medium';
 }
 
 async function pathExists(targetPath) {
@@ -87,236 +113,370 @@ async function pathExists(targetPath) {
   }
 }
 
-async function ensureDirectory(targetPath) {
-  await fs.mkdir(targetPath, { recursive: true });
+async function statSafe(targetPath) {
+  try {
+    return await fs.stat(targetPath);
+  } catch {
+    return null;
+  }
 }
 
-function buildSearchTerms(appItem) {
-  const terms = new Set();
-  const baseName = normalizeAppName(appItem.appPath || `${appItem.name}.app`);
-  const normalizedName = (appItem.name || baseName).trim();
-
-  if (normalizedName) {
-    terms.add(normalizedName);
-    terms.add(normalizedName.replace(/\s+/g, ''));
-    terms.add(normalizedName.replace(/\s+/g, '-'));
+async function findAppBundles(rootPath) {
+  if (!(await pathExists(rootPath))) {
+    return [];
   }
 
-  if (baseName) {
-    terms.add(baseName);
-  }
+  const { stdout } = await execFileAsync('find', [rootPath, '-maxdepth', '3', '-type', 'd', '-name', '*.app']);
+  return stdout
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
 
-  if (appItem.bundleId) {
-    terms.add(appItem.bundleId);
-    const bundleTail = appItem.bundleId.split('.').pop();
-    if (bundleTail) {
-      terms.add(bundleTail);
+async function listInstalledApps() {
+  const discoveredPaths = new Set();
+
+  for (const rootPath of APPLICATION_ROOTS) {
+    const matches = await findAppBundles(rootPath);
+    for (const match of matches) {
+      discoveredPaths.add(match);
     }
   }
 
-  return [...terms].filter((term) => term.length >= 3);
-}
+  const apps = [];
 
-function categoryForPath(targetPath) {
-  const table = [
-    ['Application Support', 'Application Support'],
-    ['Preferences', 'Preferences'],
-    ['Caches', 'Caches'],
-    ['Containers', 'Containers'],
-    ['Group Containers', 'Group Containers'],
-    ['Logs', 'Logs'],
-    ['Saved Application State', 'Saved Application State'],
-  ];
+  for (const appPath of [...discoveredPaths]) {
+    const stats = await statSafe(appPath);
+    if (!stats) {
+      continue;
+    }
 
-  const match = table.find(([segment]) => targetPath.includes(segment));
-  return match?.[1] ?? 'Other';
-}
-
-function isPathSafeToRemove(targetPath) {
-  return SAFE_REMOVAL_ROOTS.some((rootPath) => targetPath === rootPath || targetPath.startsWith(`${rootPath}/`));
-}
-
-async function findMatches(rootPath, searchTerms) {
-  if (!(await pathExists(rootPath))) {
-    return { matches: [], warnings: [] };
+    apps.push({
+      id: appPath,
+      name: basenameWithoutExtension(appPath),
+      appPath,
+      bundleId: null,
+      sizeBytes: stats.size,
+      source: 'installed',
+    });
   }
 
-  const args = [
-    rootPath,
-    '(',
-    ...searchTerms.flatMap((term, index) => (index === 0 ? ['-iname', `*${term}*`] : ['-o', '-iname', `*${term}*`])),
-    ')',
+  apps.sort((left, right) => left.name.localeCompare(right.name));
+  return apps;
+}
+
+function buildSearchTerms(appItem) {
+  const sourceTerms = [
+    appItem.name,
+    basenameWithoutExtension(appItem.appPath),
+    appItem.bundleId ?? '',
+    ...(appItem.bundleId ? appItem.bundleId.split('.') : []),
+    ...appItem.name.split(/\s+/g),
   ];
+
+  return [
+    ...new Set(
+      sourceTerms
+        .map((value) => value.trim().toLowerCase())
+        .filter((value) => value.length >= 3),
+    ),
+  ];
+}
+
+async function runFind(rootPath, terms) {
+  if (!(await pathExists(rootPath))) {
+    return { matches: [], inaccessible: false };
+  }
+
+  const args = [rootPath, '-maxdepth', '4', '('];
+  terms.forEach((term, index) => {
+    if (index > 0) {
+      args.push('-o');
+    }
+    args.push('-iname', `*${term}*`);
+  });
+  args.push(')');
 
   try {
-    const { stdout, stderr } = await execFileAsync('find', args, { maxBuffer: 1024 * 1024 * 8 });
-    const warnings = stderr
-      .split('\n')
-      .map((line) => line.trim())
-      .filter(Boolean);
-    return { matches: stdout.split('\n').map((line) => line.trim()).filter(Boolean), warnings };
+    const { stdout } = await execFileAsync('find', args, { maxBuffer: 1024 * 1024 * 8 });
+    return {
+      matches: stdout
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean),
+      inaccessible: false,
+    };
   } catch (error) {
-    const stdout = typeof error.stdout === 'string' ? error.stdout : '';
     const stderr = typeof error.stderr === 'string' ? error.stderr : '';
-    const warnings = stderr
-      .split('\n')
-      .map((line) => line.trim())
-      .filter(Boolean);
-    return { matches: stdout.split('\n').map((line) => line.trim()).filter(Boolean), warnings };
+    const stdout = typeof error.stdout === 'string' ? error.stdout : '';
+    return {
+      matches: stdout
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean),
+      inaccessible: stderr.includes('Permission denied'),
+    };
   }
 }
 
-async function buildResidueItem(targetPath) {
-  if (!isPathSafeToRemove(targetPath)) {
-    throw new Error(`Unsafe residue path: ${targetPath}`);
+async function buildScanItem(targetPath, appName, terms, reasonOverride) {
+  const stats = await statSafe(targetPath);
+  if (!stats) {
+    return null;
   }
 
-  const stats = await fs.stat(targetPath);
   return {
     id: targetPath,
+    label: path.basename(targetPath),
     path: targetPath,
-    sizeBytes: await readSizeBytes(targetPath),
-    category: categoryForPath(targetPath),
-    kind: stats.isDirectory() ? 'directory' : 'file',
+    category: getCategoryFromPath(targetPath),
+    confidence: confidenceForPath(targetPath, appName, terms),
+    reason:
+      reasonOverride ??
+      (targetPath.endsWith('.app')
+        ? 'Installed app bundle selected for complete uninstall.'
+        : 'Path name matches the selected app or one of its known identifiers.'),
+    appName,
+    sizeBytes: stats.size,
+    modifiedAt: stats.mtime.toISOString(),
+    isDirectory: stats.isDirectory(),
     selected: true,
   };
 }
 
-async function listInstalledApps() {
-  const bundleSet = new Set();
-
-  for (const rootPath of APPLICATION_ROOTS) {
-    await collectAppBundles(rootPath, 0, 2, bundleSet);
-  }
-
-  const apps = await Promise.all(
-    [...bundleSet].map(async (appPath) => {
-      const stats = await fs.stat(appPath);
-      const bundleId = await readBundleId(appPath);
-      const name = normalizeAppName(appPath);
-
-      return {
-        id: bundleId ?? `path:${appPath}`,
-        name,
-        bundleId,
-        appPath,
-        sizeBytes: await readSizeBytes(appPath),
-        modifiedAt: stats.mtime.toISOString(),
-        source: appPath.startsWith(path.join(os.homedir(), 'Applications')) ? 'user' : 'system',
-      };
-    }),
-  );
-
-  return apps.sort((left, right) => left.name.localeCompare(right.name));
-}
-
 async function scanAppResidues(appItem) {
   const searchTerms = buildSearchTerms(appItem);
-  const matchSet = new Set();
-  const warnings = [];
+  const scannedRoots = [...APPLICATION_ROOTS, ...RESIDUE_ROOTS.map((entry) => entry.root)];
   const inaccessibleRoots = [];
-  const scannedRoots = [];
+  const itemMap = new Map();
 
-  for (const rootPath of RESIDUE_ROOTS) {
-    scannedRoots.push(rootPath);
-    const result = await findMatches(rootPath, searchTerms);
+  const appBundleItem = await buildScanItem(
+    appItem.appPath,
+    appItem.name,
+    searchTerms,
+    'Installed app bundle selected for complete uninstall.',
+  );
+  if (appBundleItem) {
+    itemMap.set(appBundleItem.path, appBundleItem);
+  }
 
-    for (const warning of result.warnings) {
-      warnings.push(warning);
-      if (warning.includes('Permission denied')) {
-        inaccessibleRoots.push(rootPath);
-      }
+  for (const entry of RESIDUE_ROOTS) {
+    const result = await runFind(entry.root, searchTerms);
+    if (result.inaccessible) {
+      inaccessibleRoots.push(entry.root);
     }
 
     for (const match of result.matches) {
-      matchSet.add(match);
+      const item = await buildScanItem(match, appItem.name, searchTerms);
+      if (item) {
+        itemMap.set(item.path, item);
+      }
     }
   }
-
-  const residues = [];
-  for (const match of [...matchSet]) {
-    try {
-      residues.push(await buildResidueItem(match));
-    } catch {
-      // Skip entries that disappeared during the scan.
-    }
-  }
-
-  residues.sort((left, right) => right.sizeBytes - left.sizeBytes || left.path.localeCompare(right.path));
 
   return {
+    mode: 'uninstall',
+    title: appItem.name,
+    subtitle: 'App bundle, logs, caches, preferences, hidden entries and related leftovers selected for complete uninstall.',
     app: appItem,
-    residues,
-    warnings,
-    inaccessibleRoots: [...new Set(inaccessibleRoots)],
+    items: [...itemMap.values()],
     scannedRoots,
+    inaccessibleRoots,
   };
 }
 
-async function nextTrashPath(targetPath) {
-  const trashRoot = path.join(os.homedir(), '.Trash');
-  await ensureDirectory(trashRoot);
+function guessOrphanAppName(targetPath) {
+  const cleaned = basenameWithoutExtension(targetPath)
+    .replace(/^\./, '')
+    .replace(/com\.|org\.|net\.|io\./g, ' ')
+    .replace(/[^a-zA-Z0-9]+/g, ' ')
+    .trim();
 
-  const parsed = path.parse(targetPath);
-  let attempt = 0;
+  const generic = new Set([
+    'app',
+    'cache',
+    'caches',
+    'log',
+    'logs',
+    'container',
+    'group',
+    'state',
+    'saved',
+    'preferences',
+    'plist',
+    'helper',
+    'support',
+    'application',
+  ]);
 
-  while (attempt < 1000) {
-    const suffix = attempt === 0 ? '' : `-${Date.now()}-${attempt}`;
-    const candidate = path.join(trashRoot, `${parsed.name}${suffix}${parsed.ext}`);
-    if (!(await pathExists(candidate))) {
-      return candidate;
-    }
-    attempt += 1;
+  const candidates = cleaned
+    .split(/\s+/)
+    .map((token) => token.trim())
+    .filter((token) => token.length >= 3 && !generic.has(token.toLowerCase()));
+
+  if (!candidates.length) {
+    return null;
   }
 
-  throw new Error(`Could not allocate trash path for ${targetPath}`);
+  return toDisplayName(candidates.slice(0, 2).join(' '));
 }
 
-async function appendRemovalLog(entry) {
-  await ensureDirectory(APP_SUPPORT_DIR);
-  await fs.appendFile(REMOVAL_LOG_PATH, `${JSON.stringify(entry)}\n`, 'utf8');
+async function listShallowEntries(rootPath) {
+  if (!(await pathExists(rootPath))) {
+    return { paths: [], inaccessible: false };
+  }
+
+  try {
+    const { stdout } = await execFileAsync('find', [rootPath, '-maxdepth', '2', '-mindepth', '1']);
+    return {
+      paths: stdout
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean),
+      inaccessible: false,
+    };
+  } catch (error) {
+    const stderr = typeof error.stderr === 'string' ? error.stderr : '';
+    const stdout = typeof error.stdout === 'string' ? error.stdout : '';
+    return {
+      paths: stdout
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean),
+      inaccessible: stderr.includes('Permission denied'),
+    };
+  }
 }
 
-async function moveResiduesToTrash(targetPaths) {
+async function scanOrphanResidues() {
+  const installedApps = await listInstalledApps();
+  const installedNames = new Set(installedApps.map((app) => normalizeName(app.name)));
+  const items = [];
+  const scannedRoots = RESIDUE_ROOTS.map((entry) => entry.root);
+  const inaccessibleRoots = [];
+
+  for (const entry of RESIDUE_ROOTS) {
+    const result = await listShallowEntries(entry.root);
+    if (result.inaccessible) {
+      inaccessibleRoots.push(entry.root);
+    }
+
+    for (const targetPath of result.paths) {
+      const guess = guessOrphanAppName(targetPath);
+      if (guess && installedNames.has(normalizeName(guess))) {
+        continue;
+      }
+
+      const stats = await statSafe(targetPath);
+      if (!stats) {
+        continue;
+      }
+
+      items.push({
+        id: targetPath,
+        label: path.basename(targetPath),
+        path: targetPath,
+        category: getCategoryFromPath(targetPath),
+        confidence: guess ? 'medium' : 'low',
+        reason: guess
+          ? 'Candidate residue remains in a known app-support root even though the parent app is not installed.'
+          : 'Entry looks app-specific but no parent app could be identified.',
+        appName: guess,
+        sizeBytes: stats.size,
+        modifiedAt: stats.mtime.toISOString(),
+        isDirectory: stats.isDirectory(),
+        selected: false,
+      });
+    }
+  }
+
+  return {
+    mode: 'residues',
+    title: 'Residual Files',
+    subtitle: 'Deep scan for leftovers from apps that are no longer installed.',
+    app: null,
+    items,
+    scannedRoots,
+    inaccessibleRoots,
+  };
+}
+
+async function scanSystemJunk() {
+  const items = [];
+  const scannedRoots = SYSTEM_JUNK_ROOTS.map((entry) => entry.root);
+  const inaccessibleRoots = [];
+
+  for (const entry of SYSTEM_JUNK_ROOTS) {
+    const result = await listShallowEntries(entry.root);
+    if (result.inaccessible) {
+      inaccessibleRoots.push(entry.root);
+    }
+
+    for (const targetPath of result.paths) {
+      const stats = await statSafe(targetPath);
+      if (!stats) {
+        continue;
+      }
+
+      items.push({
+        id: targetPath,
+        label: path.basename(targetPath),
+        path: targetPath,
+        category: entry.category,
+        confidence: 'medium',
+        reason: 'Generic cache or log entry inside a system-junk category.',
+        appName: null,
+        sizeBytes: stats.size,
+        modifiedAt: stats.mtime.toISOString(),
+        isDirectory: stats.isDirectory(),
+        selected: false,
+      });
+    }
+  }
+
+  return {
+    mode: 'system',
+    title: 'System Junk',
+    subtitle: 'Generic caches and logs that are not tied to a single uninstall flow.',
+    app: null,
+    items,
+    scannedRoots,
+    inaccessibleRoots,
+  };
+}
+
+function isSafeToRemove(targetPath) {
+  return SAFE_REMOVE_ROOTS.some((rootPath) => targetPath === rootPath || targetPath.startsWith(`${rootPath}${path.sep}`));
+}
+
+async function removeItems(targetPaths) {
   const removedPaths = [];
   const failedPaths = [];
 
   for (const targetPath of targetPaths) {
+    if (!isSafeToRemove(targetPath)) {
+      failedPaths.push({ path: targetPath, message: 'Path is outside the safe removal roots.' });
+      continue;
+    }
+
     try {
-      if (!isPathSafeToRemove(targetPath)) {
-        throw new Error('Path is outside the safe residue roots');
-      }
-
-      if (!(await pathExists(targetPath))) {
-        throw new Error('Path no longer exists');
-      }
-
-      const trashPath = await nextTrashPath(targetPath);
-      await fs.rename(targetPath, trashPath);
+      await fs.rm(targetPath, { recursive: true, force: true });
       removedPaths.push(targetPath);
-      await appendRemovalLog({
-        removedAt: new Date().toISOString(),
-        originalPath: targetPath,
-        trashPath,
-      });
     } catch (error) {
       failedPaths.push({
         path: targetPath,
-        reason: error instanceof Error ? error.message : 'Unknown error',
+        message: error instanceof Error ? error.message : 'Unknown removal error',
       });
     }
   }
 
-  return {
-    removedPaths,
-    failedPaths,
-  };
+  return { removedPaths, failedPaths };
 }
 
 module.exports = {
-  SAFE_REMOVAL_ROOTS,
-  isPathSafeToRemove,
   listInstalledApps,
-  moveResiduesToTrash,
+  removeItems,
   scanAppResidues,
+  scanOrphanResidues,
+  scanSystemJunk,
 };

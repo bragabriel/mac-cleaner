@@ -5,56 +5,66 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { listInstalledApps, moveResiduesToTrash, scanAppResidues } = require('../electron/service.cjs');
+const {
+  listInstalledApps,
+  scanAppResidues,
+  scanOrphanResidues,
+  scanSystemJunk,
+  removeItems,
+} = require('../electron/service.cjs');
 
-const smokeName = `MacCleanerSmokeApp-${Date.now()}`;
-const smokeRoot = path.join(os.homedir(), 'Library', 'Caches', smokeName);
-const smokeFile = path.join(smokeRoot, 'cache.db');
-const trashRoot = path.join(os.homedir(), '.Trash');
+const smokeId = `mac-cleaner-smoke-${Date.now()}`;
+const appRoot = path.join(os.homedir(), 'Applications');
+const appBundlePath = path.join(appRoot, `${smokeId}.app`);
+const orphanPreferencePath = path.join(os.homedir(), 'Library', 'Preferences', `${smokeId}.plist`);
+const residueSupportPath = path.join(os.homedir(), 'Library', 'Application Support', smokeId);
+const systemLogPath = path.join(os.homedir(), 'Library', 'Logs', `${smokeId}.log`);
 
-async function cleanupTrashCopies() {
-  try {
-    const entries = await fs.readdir(trashRoot);
-    await Promise.all(
-      entries
-        .filter((entry) => entry.startsWith(smokeName))
-        .map((entry) => fs.rm(path.join(trashRoot, entry), { recursive: true, force: true })),
-    );
-  } catch {
-    // ponytail: best-effort cleanup for the smoke artifact.
-  }
+async function ensureFixture() {
+  await fs.mkdir(appBundlePath, { recursive: true });
+  await fs.mkdir(residueSupportPath, { recursive: true });
+  await fs.writeFile(path.join(appBundlePath, 'Contents.txt'), 'app', 'utf8');
+  await fs.writeFile(path.join(residueSupportPath, 'cache.db'), 'residue', 'utf8');
+  await fs.writeFile(orphanPreferencePath, 'orphan', 'utf8');
+  await fs.writeFile(systemLogPath, 'log', 'utf8');
 }
 
-await cleanupTrashCopies();
-await fs.rm(smokeRoot, { recursive: true, force: true });
-await fs.mkdir(smokeRoot, { recursive: true });
-await fs.writeFile(smokeFile, 'smoke');
+async function cleanupFixture() {
+  await fs.rm(appBundlePath, { recursive: true, force: true });
+  await fs.rm(residueSupportPath, { recursive: true, force: true });
+  await fs.rm(orphanPreferencePath, { force: true });
+  await fs.rm(systemLogPath, { force: true });
+}
 
-const apps = await listInstalledApps();
-assert(Array.isArray(apps), 'inventory should return an array');
+try {
+  await ensureFixture();
 
-const summary = await scanAppResidues({
-  id: smokeName,
-  name: smokeName,
-  bundleId: 'com.maccleaner.smoke',
-  appPath: `/Applications/${smokeName}.app`,
-  sizeBytes: 0,
-  modifiedAt: new Date().toISOString(),
-  source: 'mock',
-});
+  const apps = await listInstalledApps();
+  const smokeApp = apps.find((app) => app.appPath === appBundlePath);
+  assert.ok(smokeApp, 'Expected smoke app to be listed');
 
-assert(summary.residues.some((item) => item.path === smokeRoot), 'scan should find the synthetic cache directory');
+  const uninstallSummary = await scanAppResidues(smokeApp);
+  assert.ok(uninstallSummary.items.some((item) => item.path === appBundlePath), 'Expected uninstall scan to include the app bundle');
+  assert.ok(
+    uninstallSummary.items.some((item) => item.path === residueSupportPath),
+    'Expected uninstall scan to include the residue support path',
+  );
 
-const removal = await moveResiduesToTrash([smokeRoot]);
-assert.equal(removal.removedPaths.length, 1, 'removal should move the synthetic residue');
-assert.equal(removal.failedPaths.length, 0, 'removal should not fail for the synthetic residue');
+  await fs.rm(appBundlePath, { recursive: true, force: true });
 
-await cleanupTrashCopies();
+  const orphanSummary = await scanOrphanResidues();
+  assert.ok(
+    orphanSummary.items.some((item) => item.path === orphanPreferencePath),
+    'Expected orphan scan to include the orphan preference file',
+  );
 
-console.log(
-  JSON.stringify({
-    appsFound: apps.length,
-    residuesFound: summary.residues.length,
-    removedPaths: removal.removedPaths.length,
-  }),
-);
+  const systemSummary = await scanSystemJunk();
+  assert.ok(systemSummary.items.some((item) => item.path === systemLogPath), 'Expected system scan to include the log file');
+
+  const removalSummary = await removeItems([residueSupportPath, orphanPreferencePath, systemLogPath]);
+  assert.equal(removalSummary.failedPaths.length, 0, 'Expected safe removal to succeed');
+
+  console.log('Smoke test passed');
+} finally {
+  await cleanupFixture();
+}
