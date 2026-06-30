@@ -41,4 +41,5 @@ export interface RemovalSummary {
 export interface DesktopApi {
   isDesktop: boolean;
   listApps?: () => Promise<AppItem[]>;
+  scanApp?: (app: AppItem) => Promise<ScanSummary>;
 }

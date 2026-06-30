@@ -21,6 +21,7 @@ export default function App() {
     scanning: false,
     removing: false,
   });
+  const [summary, setSummary] = useState<ScanSummary>(EMPTY_SUMMARY);
 
   const usingDesktopApi = Boolean(window.macCleaner?.listApps);
 
@@ -38,6 +39,7 @@ export default function App() {
 
         setApps(nextApps);
         setSelectedAppId((current) => current ?? nextApps[0]?.id ?? null);
+        setSummary((current) => ({ ...current, app: nextApps[0] ?? null }));
       } catch {
         if (!active) {
           return;
@@ -45,6 +47,7 @@ export default function App() {
 
         setApps(MOCK_APPS);
         setSelectedAppId((current) => current ?? MOCK_APPS[0]?.id ?? null);
+        setSummary((current) => ({ ...current, app: MOCK_APPS[0] ?? null }));
       } finally {
         if (active) {
           setScanStatus((current) => ({ ...current, loadingApps: false }));
@@ -76,9 +79,22 @@ export default function App() {
     apps.find((app) => app.id === selectedAppId) ??
     null;
 
-  const summary: ScanSummary = {
-    ...EMPTY_SUMMARY,
-    app: selectedApp,
+  useEffect(() => {
+    setSummary((current) => ({ ...current, app: selectedApp }));
+  }, [selectedApp]);
+
+  const handleScan = async () => {
+    if (!selectedApp || !window.macCleaner?.scanApp) {
+      return;
+    }
+
+    setScanStatus((current) => ({ ...current, scanning: true }));
+    try {
+      const nextSummary = await window.macCleaner.scanApp(selectedApp);
+      setSummary(nextSummary);
+    } finally {
+      setScanStatus((current) => ({ ...current, scanning: false }));
+    }
   };
 
   return (
@@ -98,7 +114,13 @@ export default function App() {
         }}
         onSelectApp={(app) => setSelectedAppId(app.id)}
       />
-      <MainView app={selectedApp} scanStatus={scanStatus} summary={summary} usingDesktopApi={usingDesktopApi} />
+      <MainView
+        app={selectedApp}
+        scanStatus={scanStatus}
+        summary={summary}
+        usingDesktopApi={usingDesktopApi}
+        onScan={handleScan}
+      />
     </div>
   );
 }

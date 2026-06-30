@@ -1,6 +1,6 @@
 const path = require('node:path');
 const { app, BrowserWindow, ipcMain, shell } = require('electron');
-const { listInstalledApps } = require('./service.cjs');
+const { listInstalledApps, scanAppResidues } = require('./service.cjs');
 
 const DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL;
 
@@ -35,6 +35,7 @@ function createWindow() {
 
 app.whenReady().then(() => {
   ipcMain.handle('apps:list', async () => listInstalledApps());
+  ipcMain.handle('scan:app', async (_event, appItem) => scanAppResidues(appItem));
   createWindow();
 
   app.on('activate', () => {
