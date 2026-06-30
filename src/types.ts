@@ -1,30 +1,44 @@
+export type AppSource = 'system' | 'user' | 'mock';
+
 export interface AppItem {
   id: string;
   name: string;
-  bundleId: string;
-  path: string;
-  icon: string;
-  size?: string;
-  isOrphaned?: boolean;
+  bundleId: string | null;
+  appPath: string;
+  sizeBytes: number;
+  modifiedAt: string;
+  source: AppSource;
 }
 
-export interface RelatedFile {
+export interface ResidueItem {
   id: string;
   path: string;
-  size: string;
-  type: 'file' | 'directory';
+  sizeBytes: number;
+  category: string;
+  kind: 'file' | 'directory';
   selected: boolean;
-  isHidden?: boolean;
-  status?: 'idle' | 'success' | 'error';
-  risk: 'low' | 'medium' | 'high';
-  category: 'Binary' | 'Support' | 'Preference' | 'Cache' | 'Container' | 'Log' | 'Hidden';
-  reason: string;
 }
 
 export interface ScanStatus {
+  loadingApps: boolean;
   scanning: boolean;
-  progress: number;
-  currentPath: string;
-  permissionsGranted: boolean;
-  isDeepScan?: boolean;
+  removing: boolean;
+}
+
+export interface ScanSummary {
+  app: AppItem | null;
+  residues: ResidueItem[];
+  warnings: string[];
+  inaccessibleRoots: string[];
+  scannedRoots: string[];
+}
+
+export interface RemovalSummary {
+  removedPaths: string[];
+  failedPaths: Array<{ path: string; reason: string }>;
+}
+
+export interface DesktopApi {
+  isDesktop: boolean;
+  listApps?: () => Promise<AppItem[]>;
 }

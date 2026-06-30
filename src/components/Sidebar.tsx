@@ -1,111 +1,98 @@
-import React from 'react';
-import { Search, Plus, Monitor, Ghost, Zap } from 'lucide-react';
-import { AppItem } from '../types';
-import * as Icons from 'lucide-react';
+import type { AppItem } from '../types';
 
 interface SidebarProps {
   apps: AppItem[];
   selectedAppId: string | null;
-  onSelectApp: (app: AppItem) => void;
-  onAddManual: () => void;
-  onDeepScan: () => void;
   searchQuery: string;
-  onSearchChange: (query: string) => void;
+  loading: boolean;
+  onSearchChange: (value: string) => void;
+  onRefresh: () => void;
+  onSelectApp: (app: AppItem) => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({
+function formatSize(sizeBytes: number) {
+  if (sizeBytes <= 0) {
+    return '0 B';
+  }
+
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const exponent = Math.min(Math.floor(Math.log(sizeBytes) / Math.log(1024)), units.length - 1);
+  const value = sizeBytes / 1024 ** exponent;
+  return `${value.toFixed(value >= 10 || exponent === 0 ? 0 : 1)} ${units[exponent]}`;
+}
+
+export function Sidebar({
   apps,
   selectedAppId,
-  onSelectApp,
-  onAddManual,
-  onDeepScan,
   searchQuery,
-  onSearchChange
-}) => {
+  loading,
+  onSearchChange,
+  onRefresh,
+  onSelectApp,
+}: SidebarProps) {
   return (
-    <div className="w-72 flex flex-col h-full bg-black/5 border-r border-black/10 backdrop-blur-xl">
-      <div className="p-4 flex flex-col gap-4">
-        <div className="flex items-center justify-between px-1">
-          <h1 className="text-sm font-semibold text-gray-600 uppercase tracking-wider">Applications</h1>
-          <button 
-            onClick={onAddManual}
-            className="p-1.5 rounded-md hover:bg-black/5 text-gray-500 transition-colors"
-            title="Add manually"
+    <aside className="w-full max-w-sm border-r border-slate-200 bg-white/90 backdrop-blur">
+      <div className="border-b border-slate-200 px-5 py-4">
+        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Inventory</p>
+        <div className="mt-3 flex gap-2">
+          <input
+            value={searchQuery}
+            onChange={(event) => onSearchChange(event.target.value)}
+            placeholder="Filter apps"
+            className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none transition focus:border-sky-300 focus:bg-white"
+          />
+          <button
+            onClick={onRefresh}
+            className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
           >
-            <Plus size={16} />
+            Refresh
           </button>
         </div>
+      </div>
 
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
-          <input
-            type="text"
-            placeholder="Search apps..."
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full pl-9 pr-3 py-1.5 bg-white/50 border border-black/10 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
-          />
+      <div className="max-h-[calc(100vh-122px)] overflow-y-auto px-3 py-3">
+        {loading ? (
+          <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500">
+            Reading `/Applications` and `~/Applications`...
+          </div>
+        ) : null}
+
+        {!loading && apps.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500">
+            No app bundles found for this filter.
+          </div>
+        ) : null}
+
+        <div className="space-y-2">
+          {apps.map((app) => {
+            const selected = app.id === selectedAppId;
+
+            return (
+              <button
+                key={app.id}
+                onClick={() => onSelectApp(app)}
+                className={`block w-full rounded-2xl border px-4 py-3 text-left transition ${
+                  selected
+                    ? 'border-sky-300 bg-sky-50 shadow-sm'
+                    : 'border-transparent bg-transparent hover:border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">{app.name}</p>
+                    <p className="mt-1 text-xs text-slate-500">{app.bundleId ?? 'bundle id unavailable'}</p>
+                  </div>
+                  <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-medium text-slate-600">
+                    {app.source}
+                  </span>
+                </div>
+                <p className="mt-2 truncate text-xs text-slate-500">{app.appPath}</p>
+                <p className="mt-2 text-xs font-medium text-slate-700">{formatSize(app.sizeBytes)}</p>
+              </button>
+            );
+          })}
         </div>
       </div>
-
-      <div className="flex-1 overflow-y-auto px-2 pb-4">
-        {apps.length === 0 ? (
-          <div className="text-center py-10 px-4">
-            <Monitor className="mx-auto text-gray-300 mb-2" size={32} />
-            <p className="text-xs text-gray-400">No applications found</p>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-0.5">
-            {apps.map((app) => {
-              const IconComponent = (Icons as any)[app.icon] || (app.isOrphaned ? Ghost : Monitor);
-              return (
-                <button
-                  key={app.id}
-                  onClick={() => onSelectApp(app)}
-                  className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all text-left ${
-                    selectedAppId === app.id
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'hover:bg-black/5 text-gray-700'
-                  }`}
-                >
-                  <div className={`p-1.5 rounded-lg ${
-                    selectedAppId === app.id 
-                      ? 'bg-white/20' 
-                      : app.isOrphaned ? 'bg-amber-100' : 'bg-white shadow-sm'
-                  }`}>
-                    <IconComponent size={16} className={app.isOrphaned && selectedAppId !== app.id ? 'text-amber-600' : ''} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <p className="text-sm font-medium truncate">{app.name}</p>
-                      {app.isOrphaned && (
-                        <span className={`text-[8px] font-bold uppercase tracking-tighter px-1 rounded ${
-                          selectedAppId === app.id ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-700'
-                        }`}>
-                          Ghost
-                        </span>
-                      )}
-                    </div>
-                    <p className={`text-[10px] truncate ${selectedAppId === app.id ? 'text-blue-100' : 'text-gray-400'}`}>
-                      {app.path}
-                    </p>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      <div className="p-4 border-t border-black/5">
-        <button 
-          onClick={onDeepScan}
-          className="w-full flex items-center justify-center gap-2 py-2.5 bg-blue-600/10 hover:bg-blue-600/20 text-blue-700 rounded-xl transition-all font-semibold text-xs border border-blue-600/20"
-        >
-          <Zap size={14} className="fill-blue-700" />
-          Deep Residue Scan
-        </button>
-      </div>
-    </div>
+    </aside>
   );
-};
+}
