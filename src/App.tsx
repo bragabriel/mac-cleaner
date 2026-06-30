@@ -33,7 +33,7 @@ export default function App() {
       setScanStatus((current) => ({ ...current, loadingApps: true }));
 
       try {
-        const nextApps = window.macCleaner?.listApps ? await window.macCleaner.listApps() : MOCK_APPS;
+        const nextApps = window.macCleaner?.listApps ? await window.macCleaner.listApps() : [];
         if (!active) {
           return;
         }
@@ -46,9 +46,9 @@ export default function App() {
           return;
         }
 
-        setApps(MOCK_APPS);
-        setSelectedAppId((current) => current ?? MOCK_APPS[0]?.id ?? null);
-        setSummary((current) => ({ ...current, app: MOCK_APPS[0] ?? null }));
+        setApps([]);
+        setSelectedAppId(null);
+        setSummary((current) => ({ ...current, app: null }));
       } finally {
         if (active) {
           setScanStatus((current) => ({ ...current, loadingApps: false }));
