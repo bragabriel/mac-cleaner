@@ -25,6 +25,7 @@ npm run dev
 
 Esse modo sobe so o frontend Vite.
 Nao e o app real do Mac.
+Usa dados mockados para voce trabalhar na interface separado.
 Nao deve ser usado para validar comportamento real do produto.
 
 ## Resumo rapido
