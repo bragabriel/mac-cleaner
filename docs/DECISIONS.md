@@ -21,12 +21,12 @@
 
 | Goal | Status | Descricao |
 | --- | --- | --- |
-| App macOS testavel | TODO | sair do prototipo web e rodar como app no Mac |
-| Desinstalacao profunda de app | TODO | remover `.app` principal e rastro relacionado |
-| Deteccao real de residuos | TODO | identificar restos de apps ja removidos no sistema |
-| UI integrada com scanner real | TODO | substituir mocks por dados do sistema |
-| Limpeza generica do sistema | TODO | frente posterior para caches e logs genericos |
-| Remocao real | TODO | implementacao com confirmacao e delecao direta |
+| App macOS testavel | DONE | sair do prototipo web e rodar como app no Mac |
+| Desinstalacao profunda de app | DONE | remover `.app` principal e rastro relacionado |
+| Deteccao real de residuos | DONE | identificar restos de apps ja removidos no sistema |
+| UI integrada com scanner real | DONE | substituir mocks por dados do sistema |
+| Limpeza generica do sistema | DONE | frente posterior inicial para caches e logs genericos |
+| Remocao real | DONE | implementacao com confirmacao e delecao direta |
 
 ## PRD Tracking
 
@@ -44,7 +44,7 @@
 | DONE | System junk flow | mapear a terceira aba de limpeza generica | `docs/next-steps/10-PRD-system-junk-flow.md` |
 | DONE | Minimal home and navigation | reduzir confusao com home e navegacao claras | `docs/next-steps/11-PRD-home-and-navigation.md` |
 | DONE | Results model and progress UX | exibir progresso, confianca e detalhes expansivos | `docs/next-steps/12-PRD-results-and-progress-ux.md` |
-| TODO | Future recoverable-size ideas | registrar ideias futuras de espaco recuperavel | `docs/next-steps/13-PRD-recoverable-size-ideas.md` |
+| DONE | Future recoverable-size ideas | registrar ideias futuras de espaco recuperavel | `docs/next-steps/13-PRD-recoverable-size-ideas.md` |
 
 ## Regra de atualizacao
 
