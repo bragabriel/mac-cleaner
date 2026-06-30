@@ -1,6 +1,0 @@
-{
-  "name": "Cleaner for macOS",
-  "description": "A lightweight utility to locate and remove apps and their associated residual files on macOS.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
