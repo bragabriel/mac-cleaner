@@ -412,7 +412,7 @@ export function MainView({
 
   const summaryPanel =
     summary && (mode === 'uninstall' || mode === 'cleanup') ? (
-      <section className="flex min-h-0 flex-col overflow-hidden rounded-[26px] border border-black/6 bg-white">
+      <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-[26px] border border-black/6 bg-white">
         <div className="border-b border-black/6 px-5 py-4">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
