@@ -498,7 +498,7 @@ export function MainView({
             key={item.id}
             type="button"
             onClick={() => setSelectedResultId(item.id)}
-            className={`grid w-full grid-cols-[auto_minmax(0,1fr)_auto] gap-3 border-b border-black/6 px-4 py-4 text-left transition lg:px-5 ${
+            className={`grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3 border-b border-black/6 px-4 py-4 text-left transition lg:px-5 ${
               item.id === selectedResult?.id ? 'bg-[#F4F1FF]' : 'bg-white hover:bg-[#F8F7FB]'
             }`}
           >
@@ -517,7 +517,7 @@ export function MainView({
               <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-[#9EA2AE]">{item.category}</p>
               <p className="mt-3 truncate text-xs text-[#747785]">{item.path}</p>
             </div>
-            <span className="rounded-none border border-black/6 bg-white px-3 py-1 text-xs text-[#747785]">
+            <span className="inline-flex h-7 min-w-[58px] shrink-0 items-center justify-center self-start whitespace-nowrap border border-black/6 bg-white px-2 text-xs text-[#747785]">
               {formatBytes(item.sizeBytes)}
             </span>
           </button>
@@ -573,7 +573,7 @@ export function MainView({
         <div className="grid items-start gap-4">
           <div className="rounded-2xl bg-white px-4 py-4">
             <p className="text-[11px] uppercase tracking-[0.18em] text-[#9EA2AE]">Roots inspected</p>
-            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <div className="mt-3 grid max-h-[280px] gap-2 overflow-y-auto pr-1 2xl:max-h-none 2xl:grid-cols-2 2xl:overflow-visible 2xl:pr-0">
               {selectedCleanup.roots.map((root) => (
                 <div key={root} className="rounded-2xl bg-[#FAFAFC] px-3 py-3 text-sm text-[#111215]">
                   {root}
@@ -767,7 +767,7 @@ export function MainView({
                     wide
                     header={false}
                   >
-                    <div className="h-full min-h-0 overflow-hidden p-4 lg:p-5">{cleanupSecondColumn}</div>
+                    <div className="h-full min-h-0 overflow-y-auto p-4 lg:p-5">{cleanupSecondColumn}</div>
                   </Panel>
                   <Panel title={summary ? summary.title : 'Scan Results'} subtitle="Cleanup scan results expand into this right-side column." wide header={false}>
                     <div className="h-full min-h-0 overflow-hidden p-4 lg:p-5">{cleanupThirdColumn}</div>
