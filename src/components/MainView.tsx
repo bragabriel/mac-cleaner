@@ -48,6 +48,10 @@ interface MainViewProps {
   onCancelRemoval: () => void;
 }
 
+function cn(...values: Array<string | false | null | undefined>) {
+  return values.filter(Boolean).join(' ');
+}
+
 const cleanupEntries: Array<{
   id: CleanupMode;
   title: string;
@@ -367,7 +371,10 @@ export function MainView({
   const selectedCleanup = cleanupEntries.find((entry) => entry.id === cleanupMode) ?? cleanupEntries[0];
   const selectedStartup = startupEntries.find((entry) => entry.id === selectedStartupId) ?? startupEntries[0];
   const selectedSetting = settingsEntries.find((entry) => entry.id === selectedSettingId) ?? settingsEntries[0];
-  const selectedResult = summary?.items.find((item) => item.id === selectedResultId) ?? summary?.items[0] ?? null;
+  const summaryItems = summary?.items ?? [];
+  const scannedRoots = summary?.scannedRoots ?? [];
+  const inaccessibleRoots = summary?.inaccessibleRoots ?? [];
+  const selectedResult = summaryItems.find((item) => item.id === selectedResultId) ?? summaryItems[0] ?? null;
   const selectedCount = summary?.items.filter((item) => item.selected).length ?? 0;
   const selectedBytes =
     summary?.items.filter((item) => item.selected).reduce((total, item) => total + item.sizeBytes, 0) ?? 0;
@@ -419,11 +426,11 @@ export function MainView({
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">Scan Results</p>
               <h3 className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-[#111215]">{summary.title}</h3>
               <p className="mt-2 text-sm leading-7 text-[#747785]">
-                {summary.subtitle || `${summary.items.length} candidates found. Review, select, and remove here.`}
+                {summary.subtitle || `${summaryItems.length} candidates found. Review, select, and remove here.`}
               </p>
             </div>
             <div className="grid grid-cols-2 gap-3 lg:min-w-[250px]">
-              <InfoChip label="Selected" value={`${selectedCount} of ${summary.items.length}`} />
+              <InfoChip label="Selected" value={`${selectedCount} of ${summaryItems.length}`} />
               <InfoChip label="Selected Size" value={formatBytes(selectedBytes)} />
             </div>
           </div>
@@ -438,11 +445,11 @@ export function MainView({
           <div className="mt-5 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <div className="flex flex-wrap gap-3 text-xs text-[#747785]">
               <span className="rounded-full border border-black/6 bg-[#FAFAFC] px-3 py-1.5">
-                {summary.scannedRoots.length} roots scanned
+                {scannedRoots.length} roots scanned
               </span>
-              {summary.inaccessibleRoots.length ? (
+              {inaccessibleRoots.length ? (
                 <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-amber-700">
-                  {summary.inaccessibleRoots.length} restricted roots
+                  {inaccessibleRoots.length} restricted roots
                 </span>
               ) : null}
             </div>
@@ -453,7 +460,7 @@ export function MainView({
                 onClick={onToggleAll}
                 className="rounded-2xl border border-black/6 bg-white px-4 py-3 text-sm font-semibold text-[#111215] transition hover:bg-[#F4F4F8]"
               >
-                {selectedCount === summary.items.length ? 'Unselect all' : 'Select all'}
+                {selectedCount === summaryItems.length ? 'Unselect all' : 'Select all'}
               </button>
               <button
                 type="button"
@@ -470,8 +477,8 @@ export function MainView({
         <div className="grid min-h-0 flex-1 gap-0 border-t border-black/6 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
           <div className="min-h-0 overflow-hidden border-b border-black/6 xl:border-b-0 xl:border-r xl:border-black/6">
             <div className="h-full overflow-y-auto">
-              {summary.items.length ? (
-                summary.items.map((item) => (
+              {summaryItems.length ? (
+                summaryItems.map((item) => (
                   <button
                     key={item.id}
                     type="button"
@@ -590,11 +597,11 @@ export function MainView({
                     </button>
                   </div>
 
-                  {summary.scannedRoots.length ? (
+                  {scannedRoots.length ? (
                     <div className="rounded-[22px] border border-black/6 bg-white p-4">
                       <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">Scanned roots</p>
                       <div className="mt-3 space-y-2">
-                        {summary.scannedRoots.map((root) => (
+                        {scannedRoots.map((root) => (
                           <div key={root} className="rounded-2xl bg-[#FAFAFC] px-3 py-3 text-sm text-[#111215]">
                             {root}
                           </div>
@@ -603,13 +610,13 @@ export function MainView({
                     </div>
                   ) : null}
 
-                  {summary.inaccessibleRoots.length ? (
+                  {inaccessibleRoots.length ? (
                     <div className="rounded-[22px] border border-amber-200 bg-amber-50 p-4">
                       <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-700">
                         Restricted roots
                       </p>
                       <div className="mt-3 space-y-2 text-sm text-amber-800">
-                        {summary.inaccessibleRoots.map((root) => (
+                        {inaccessibleRoots.map((root) => (
                           <div key={root} className="rounded-2xl bg-white/70 px-3 py-3">
                             {root}
                           </div>
@@ -684,6 +691,81 @@ export function MainView({
       Select an app from the first column to open the final workspace column.
     </div>
   );
+
+  const uninstallThirdColumn = app ? (
+    summary ? (
+      <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-[26px] border border-black/6 bg-white">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-black/6 px-4 py-4 lg:px-5">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">Scan results</p>
+                  <p className="mt-1 text-sm text-[#747785]">{summaryItems.length} leftovers found</p>
+          </div>
+          <button
+            type="button"
+            onClick={onToggleAll}
+            className="text-sm font-semibold text-[#7263FF] transition hover:text-[#5748E5]"
+          >
+                  {selectedCount === summaryItems.length ? 'Unselect all' : 'Select all'}
+          </button>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto">
+                {summaryItems.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setSelectedResultId(item.id)}
+              className={cn(
+                'flex w-full items-start gap-4 border-b border-black/6 px-4 py-4 text-left transition last:border-b-0 lg:px-5',
+                selectedResult?.id === item.id ? 'bg-[#F4F1FF]' : 'bg-white hover:bg-[#F8F7FB]',
+              )}
+            >
+              <input
+                type="checkbox"
+                checked={item.selected}
+                onChange={(event) => {
+                  event.stopPropagation();
+                  onToggleItem(item.id);
+                }}
+                className="mt-1 h-4 w-4 rounded border-[#C8CBD4] text-[#7263FF] focus:ring-[#7263FF]"
+              />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-[#111215]">{item.label}</p>
+                    <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-[#9EA2AE]">{item.category}</p>
+                  </div>
+                  <span className="shrink-0 rounded-full border border-black/6 bg-white/70 px-3 py-1 text-[11px] text-[#747785]">
+                    {formatBytes(item.sizeBytes)}
+                  </span>
+                </div>
+                <p className="mt-3 break-all text-[11px] text-[#747785]">{item.path}</p>
+              </div>
+            </button>
+          ))}
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-black/6 px-4 py-4 lg:px-5">
+          <span className="rounded-full border border-black/8 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#747785]">
+            {usingDesktopApi ? 'Live Mac access' : 'Preview mode'}
+          </span>
+          <button
+            type="button"
+            onClick={onConfirmRemoval}
+            disabled={selectedCount === 0 || scanStatus.removing}
+            className="inline-flex items-center gap-2 rounded-2xl bg-[#111215] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#252733] disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {scanStatus.removing ? <Loader2 className="h-4 w-4 animate-spin" /> : <HardDriveDownload className="h-4 w-4" />}
+            {scanStatus.removing ? 'Removing...' : `Remove ${selectedCount} selected item${selectedCount === 1 ? '' : 's'}`}
+          </button>
+        </div>
+      </div>
+    ) : (
+      <div className="flex h-full items-center justify-center rounded-[26px] border border-dashed border-black/8 bg-white/70 px-6 py-10 text-center text-sm leading-7 text-[#747785]">
+        Run the scan to open the right-side results column.
+      </div>
+    )
+  ) : null;
 
   const cleanupSecondColumn = (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
@@ -829,7 +911,14 @@ export function MainView({
               </div>
             </div>
           ) : (
-            <div className="grid h-full min-h-0 gap-3 p-3 md:grid-cols-[300px_minmax(0,1fr)] lg:gap-4 lg:p-4 xl:grid-cols-[320px_minmax(0,1fr)]">
+            <div
+              className={cn(
+                'grid h-full min-h-0 gap-3 p-3 lg:gap-4 lg:p-4',
+                mode === 'uninstall'
+                  ? 'md:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[minmax(260px,0.85fr)_minmax(320px,1fr)_minmax(320px,0.95fr)]'
+                  : 'md:grid-cols-[300px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)]',
+              )}
+            >
               {mode === 'uninstall' ? (
                 <>
                   <Panel title="Applications" subtitle="Installed apps on this Mac." scroll>
@@ -861,14 +950,14 @@ export function MainView({
                       rightMeta={(entry) => entry.sizeText}
                     />
                   </Panel>
-                  <Panel
-                    title={app ? app.name : 'App Workspace'}
-                    subtitle="Second and final content column. Deeper steps continue downward here."
-                    wide
-                    header={false}
-                  >
-                    <div className="h-full min-h-0 p-4 lg:p-5">{uninstallSecondColumn}</div>
+                  <Panel title={app ? app.name : 'App Workspace'} subtitle="Middle column for the selected app." wide header={false}>
+                    <div className="h-full min-h-0 overflow-hidden p-4 lg:p-5">{uninstallSecondColumn}</div>
                   </Panel>
+                  {app ? (
+                    <Panel title={summary ? summary.title : 'Scan Results'} subtitle="Scanned items expand into this right-side column." wide header={false}>
+                      <div className="h-full min-h-0 overflow-hidden p-4 lg:p-5">{uninstallThirdColumn}</div>
+                    </Panel>
+                  ) : null}
                 </>
               ) : null}
 
