@@ -1,4 +1,4 @@
-import { AppItem, ScanSummary } from './types';
+import { AppItem, PermissionSnapshot, ScanSummary } from './types';
 
 export const MOCK_APPS: AppItem[] = [
   {
@@ -178,6 +178,32 @@ export const MOCK_SYSTEM_SUMMARY: ScanSummary = {
       modifiedAt: '2026-07-01T09:05:00.000Z',
       isDirectory: true,
       selected: false,
+    },
+  ],
+};
+
+export const MOCK_PERMISSION_SNAPSHOT: PermissionSnapshot = {
+  checkedAt: '2026-07-01T12:00:00.000Z',
+  permissions: [
+    {
+      target: 'privacy-full-disk-access',
+      status: 'not-granted',
+      detail: 'Protected Library folders may stay hidden until Full Disk Access is granted in System Settings.',
+    },
+    {
+      target: 'privacy-accessibility',
+      status: 'granted',
+      detail: 'Accessibility is available, so the app can guide focus back to cleanup-related system prompts.',
+    },
+    {
+      target: 'privacy-automation',
+      status: 'unknown',
+      detail: 'macOS does not expose a stable API for Automation approval state. Verify it manually if follow-up flows stall.',
+    },
+    {
+      target: 'login-items',
+      status: 'needs-manual-review',
+      detail: 'Background Items should be reviewed manually after each cleanup because macOS may re-enable them independently.',
     },
   ],
 };

@@ -1,8 +1,18 @@
 import {useEffect, useMemo, useRef, useState} from 'react';
 import {MainView} from './components/MainView';
 import {Sidebar} from './components/Sidebar';
-import {MOCK_APPS, MOCK_ORPHAN_SUMMARY, MOCK_SYSTEM_SUMMARY, MOCK_UNINSTALL_SUMMARY} from './data';
-import type {AppItem, CleanupMode, ProductMode, RemovalFailure, ScanItem, ScanStatus, ScanSummary} from './types';
+import {MOCK_APPS, MOCK_ORPHAN_SUMMARY, MOCK_PERMISSION_SNAPSHOT, MOCK_SYSTEM_SUMMARY, MOCK_UNINSTALL_SUMMARY} from './data';
+import type {
+  AppItem,
+  CleanupMode,
+  PermissionSettingTarget,
+  PermissionSnapshot,
+  ProductMode,
+  RemovalFailure,
+  ScanItem,
+  ScanStatus,
+  ScanSummary,
+} from './types';
 
 const idleStatus: ScanStatus = {
   loadingApps: false,
@@ -30,6 +40,9 @@ export default function App() {
   const [scanStatus, setScanStatus] = useState<ScanStatus>(idleStatus);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [lastFailures, setLastFailures] = useState<RemovalFailure[]>([]);
+  const [permissionSnapshot, setPermissionSnapshot] = useState<PermissionSnapshot | null>(null);
+  const [permissionCheckLoading, setPermissionCheckLoading] = useState(false);
+  const [permissionCheckError, setPermissionCheckError] = useState<string | null>(null);
   const progressIntervalRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -73,6 +86,31 @@ export default function App() {
     setConfirmOpen(false);
     setLastFailures([]);
     setScanStatus((current) => ({...current, progress: 0, progressLabel: ''}));
+  }, [mode]);
+
+  const refreshPermissionSnapshot = async () => {
+    setPermissionCheckLoading(true);
+    setPermissionCheckError(null);
+
+    try {
+      const nextSnapshot = window.macCleaner?.getPermissionSnapshot
+        ? await window.macCleaner.getPermissionSnapshot()
+        : MOCK_PERMISSION_SNAPSHOT;
+      setPermissionSnapshot(nextSnapshot);
+    } catch (error) {
+      setPermissionSnapshot(MOCK_PERMISSION_SNAPSHOT);
+      setPermissionCheckError(error instanceof Error ? error.message : 'Permission check failed.');
+    } finally {
+      setPermissionCheckLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (mode !== 'settings') {
+      return;
+    }
+
+    void refreshPermissionSnapshot();
   }, [mode]);
 
   const filteredApps = useMemo(() => {
@@ -267,7 +305,11 @@ export default function App() {
         onRunScan={runScan}
         onToggleItem={toggleItem}
         onToggleAll={toggleAll}
-        onOpenPrivacySettings={() => window.macCleaner?.openPrivacySettings?.()}
+        permissionSnapshot={permissionSnapshot}
+        permissionCheckLoading={permissionCheckLoading}
+        permissionCheckError={permissionCheckError}
+        onOpenSystemSettings={(target: PermissionSettingTarget) => window.macCleaner?.openSystemSettings?.(target)}
+        onRefreshPermissionSnapshot={refreshPermissionSnapshot}
         onCopyPath={handleCopyPath}
         onRevealPath={handleRevealPath}
         onOpenPath={handleOpenPath}

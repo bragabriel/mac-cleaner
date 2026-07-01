@@ -1,6 +1,7 @@
 const path = require('node:path');
-const { app, BrowserWindow, ipcMain, shell, systemPreferences } = require('electron');
+const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const { listInstalledApps, removeItems, scanAppResidues, scanOrphanResidues, scanSystemJunk } = require('./service.cjs');
+const { getPermissionSnapshot, openSystemSettingsTarget } = require('./permissions/checks.cjs');
 
 const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
 
@@ -39,11 +40,8 @@ app.whenReady().then(() => {
   ipcMain.handle('items:remove', async (_event, targetPaths) => removeItems(targetPaths));
   ipcMain.handle('finder:reveal', async (_event, targetPath) => shell.showItemInFolder(targetPath));
   ipcMain.handle('item:open', async (_event, targetPath) => shell.openPath(targetPath));
-  ipcMain.handle('permissions:open-settings', async () => {
-    if (typeof systemPreferences.openSystemSettings === 'function') {
-      await systemPreferences.openSystemSettings('privacy');
-    }
-  });
+  ipcMain.handle('permissions:get-snapshot', async () => getPermissionSnapshot());
+  ipcMain.handle('permissions:open-settings', async (_event, target) => openSystemSettingsTarget(target));
 
   createWindow();
 

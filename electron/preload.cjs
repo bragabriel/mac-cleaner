@@ -8,5 +8,6 @@ contextBridge.exposeInMainWorld('macCleaner', {
   removeItems: (targetPaths) => ipcRenderer.invoke('items:remove', targetPaths),
   revealPath: (targetPath) => ipcRenderer.invoke('finder:reveal', targetPath),
   openPath: (targetPath) => ipcRenderer.invoke('item:open', targetPath),
-  openPrivacySettings: () => ipcRenderer.invoke('permissions:open-settings'),
+  openSystemSettings: (target) => ipcRenderer.invoke('permissions:open-settings', target),
+  getPermissionSnapshot: () => ipcRenderer.invoke('permissions:get-snapshot'),
 });

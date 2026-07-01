@@ -16,7 +16,18 @@ import {
   ToggleRight,
   Trash2,
 } from 'lucide-react';
-import type {AppItem, CleanupMode, ProductMode, RemovalFailure, ScanItem, ScanStatus, ScanSummary} from '../types';
+import type {
+  AppItem,
+  CleanupMode,
+  PermissionSettingTarget,
+  PermissionSnapshot,
+  PermissionStatus,
+  ProductMode,
+  RemovalFailure,
+  ScanItem,
+  ScanStatus,
+  ScanSummary,
+} from '../types';
 
 interface MainViewProps {
   mode: ProductMode;
@@ -27,6 +38,9 @@ interface MainViewProps {
   summary: ScanSummary | null;
   scanStatus: ScanStatus;
   usingDesktopApi: boolean;
+  permissionSnapshot: PermissionSnapshot | null;
+  permissionCheckLoading: boolean;
+  permissionCheckError: string | null;
   onModeChange: (mode: ProductMode) => void;
   onCleanupModeChange: (mode: CleanupMode) => void;
   onSelectApp: (app: AppItem) => void;
@@ -34,7 +48,8 @@ interface MainViewProps {
   onRunScan: () => void | Promise<void>;
   onToggleItem: (itemId: string) => void;
   onToggleAll: () => void;
-  onOpenPrivacySettings: () => void | Promise<void>;
+  onOpenSystemSettings: (target: PermissionSettingTarget) => void | Promise<void>;
+  onRefreshPermissionSnapshot: () => void | Promise<void>;
   onCopyPath: (targetPath: string) => void | Promise<void>;
   onRevealPath: (targetPath: string) => void | Promise<void>;
   onOpenPath: (targetPath: string) => void | Promise<void>;
@@ -148,23 +163,104 @@ const startupEntries = [
   },
 ];
 
-const settingsEntries = [
+const settingsEntries: Array<{
+  id: PermissionSettingTarget;
+  title: string;
+  subtitle: string;
+  priority: 'required' | 'recommended' | 'optional';
+  description: string;
+  impact: string;
+  actionLabel: string;
+}> = [
   {
-    id: 'privacy',
-    title: 'Privacy Permissions',
-    subtitle: 'Explain required macOS permissions and why scans may miss protected folders.',
+    id: 'privacy-full-disk-access',
+    title: 'Full Disk Access',
+    subtitle: 'Lets scans inspect protected Library locations and app support folders that macOS hides by default.',
+    priority: 'required',
+    description:
+      'Deep uninstall and orphan cleanup depend on visibility into protected directories such as Application Support, Containers, and Logs.',
+    impact: 'Without it, scans can look healthy while silently missing protected leftovers that remain on disk.',
+    actionLabel: 'Open Full Disk Access',
   },
   {
-    id: 'scan-behavior',
-    title: 'Scan Behavior',
-    subtitle: 'Tune how aggressive scans should be and which roots are included.',
+    id: 'privacy-accessibility',
+    title: 'Accessibility',
+    subtitle: 'Allows the app to guide focus back to cleanup prompts and related macOS follow-up flows.',
+    priority: 'recommended',
+    description:
+      'Accessibility is the safest way to help users complete system-managed steps without guessing where macOS moved the current prompt.',
+    impact: 'Without it, the app can still scan files, but guided follow-up actions become less reliable.',
+    actionLabel: 'Open Accessibility',
   },
   {
-    id: 'safety',
-    title: 'Safety',
-    subtitle: 'Define confirmation defaults and guardrails for destructive operations.',
+    id: 'privacy-automation',
+    title: 'Automation',
+    subtitle: 'Needed when cleanup workflows must hand off to other apps or system utilities after review.',
+    priority: 'optional',
+    description:
+      'Automation consent is granted per target app. Keep it available only if your workflow depends on scripted follow-up tasks.',
+    impact: 'If missing, external follow-up actions may pause on the macOS consent prompt and need manual intervention.',
+    actionLabel: 'Open Automation',
+  },
+  {
+    id: 'login-items',
+    title: 'Background Items',
+    subtitle: 'Review launch helpers and login items that can recreate residue after a cleanup.',
+    priority: 'recommended',
+    description:
+      'Some apps reinstall launch helpers or keep agents alive through Login Items and Background Items even after files are removed.',
+    impact: 'If this area is ignored, cleanup can look complete while background helpers continue recreating support files.',
+    actionLabel: 'Open Login Items',
   },
 ];
+
+function priorityTone(priority: 'required' | 'recommended' | 'optional') {
+  switch (priority) {
+    case 'required':
+      return 'border-rose-200 bg-rose-50 text-rose-700';
+    case 'recommended':
+      return 'border-amber-200 bg-amber-50 text-amber-700';
+    default:
+      return 'border-slate-200 bg-slate-50 text-slate-700';
+  }
+}
+
+function priorityLabel(priority: 'required' | 'recommended' | 'optional') {
+  switch (priority) {
+    case 'required':
+      return 'Required';
+    case 'recommended':
+      return 'Recommended';
+    default:
+      return 'Optional';
+  }
+}
+
+function permissionStatusTone(status: PermissionStatus) {
+  switch (status) {
+    case 'granted':
+      return 'border-emerald-200 bg-emerald-50 text-emerald-700';
+    case 'not-granted':
+      return 'border-rose-200 bg-rose-50 text-rose-700';
+    case 'needs-manual-review':
+      return 'border-amber-200 bg-amber-50 text-amber-700';
+    default:
+      return 'border-slate-200 bg-slate-50 text-slate-700';
+  }
+}
+
+function permissionStatusLabel(status: PermissionStatus) {
+  switch (status) {
+    case 'granted':
+      return 'Granted';
+    case 'not-granted':
+      return 'Not granted';
+    case 'needs-manual-review':
+      return 'Needs manual review';
+    default:
+      return 'Unknown';
+  }
+}
 
 function formatBytes(bytes: number) {
   if (bytes <= 0) {
@@ -343,6 +439,9 @@ export function MainView({
   summary,
   scanStatus,
   usingDesktopApi,
+  permissionSnapshot,
+  permissionCheckLoading,
+  permissionCheckError,
   onModeChange,
   onCleanupModeChange,
   onSelectApp,
@@ -350,7 +449,8 @@ export function MainView({
   onRunScan,
   onToggleItem,
   onToggleAll,
-  onOpenPrivacySettings,
+  onOpenSystemSettings,
+  onRefreshPermissionSnapshot,
   onCopyPath,
   onRevealPath,
   onOpenPath,
@@ -370,7 +470,18 @@ export function MainView({
 
   const selectedCleanup = cleanupEntries.find((entry) => entry.id === cleanupMode) ?? cleanupEntries[0];
   const selectedStartup = startupEntries.find((entry) => entry.id === selectedStartupId) ?? startupEntries[0];
-  const selectedSetting = settingsEntries.find((entry) => entry.id === selectedSettingId) ?? settingsEntries[0];
+  const permissionStateByTarget = useMemo(
+    () => new Map((permissionSnapshot?.permissions ?? []).map((permission) => [permission.target, permission])),
+    [permissionSnapshot],
+  );
+  const settingsWithStatus = settingsEntries.map((entry) => ({
+    ...entry,
+    status: permissionStateByTarget.get(entry.id)?.status ?? 'unknown',
+    statusDetail:
+      permissionStateByTarget.get(entry.id)?.detail ??
+      'No live permission signal is available yet. Open System Settings and verify it manually.',
+  }));
+  const selectedSetting = settingsWithStatus.find((entry) => entry.id === selectedSettingId) ?? settingsWithStatus[0];
   const summaryItems = summary?.items ?? [];
   const scannedRoots = summary?.scannedRoots ?? [];
   const inaccessibleRoots = summary?.inaccessibleRoots ?? [];
@@ -595,7 +706,9 @@ export function MainView({
             </button>
             <button
               type="button"
-              onClick={onOpenPrivacySettings}
+                      onClick={() => {
+                        void onOpenSystemSettings('privacy');
+                      }}
               className="inline-flex h-11 w-full min-w-0 items-center justify-center gap-2 rounded-2xl border border-black/6 bg-white px-3 py-2.5 text-xs font-semibold leading-none text-[#111215] transition hover:bg-[#F4F4F8] sm:px-4 sm:text-sm"
             >
               <ShieldAlert className="h-4 w-4" />
@@ -810,11 +923,16 @@ export function MainView({
 
               {mode === 'settings' ? (
                 <>
-                  <Panel title="Settings" subtitle="Configuration sections using the same two-column navigation rule." scroll>
+                  <Panel
+                    title="Permissions"
+                    subtitle="macOS capabilities that affect scan coverage and cleanup follow-up."
+                    scroll
+                  >
                     <ListColumn
-                      entries={settingsEntries}
+                      entries={settingsWithStatus}
                       activeId={selectedSettingId}
                       onSelect={(entry) => setSelectedSettingId(entry.id)}
+                      rightMeta={(entry) => permissionStatusLabel(entry.status)}
                     />
                   </Panel>
                   <Panel
@@ -826,16 +944,105 @@ export function MainView({
                   >
                     <div className="p-4 lg:p-5">
                       <DetailCard
-                        icon={<Settings className="h-6 w-6" />}
+                        icon={
+                          selectedSetting.status === 'granted' ? (
+                            <CheckCircle2 className="h-6 w-6" />
+                          ) : (
+                            <ShieldAlert className="h-6 w-6" />
+                          )
+                        }
                         title={selectedSetting.title}
                         subtitle={selectedSetting.subtitle}
+                        rightSlot={
+                          <div className="flex flex-wrap justify-end gap-2">
+                            <span
+                              className={cn(
+                                'rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]',
+                                priorityTone(selectedSetting.priority),
+                              )}
+                            >
+                              {priorityLabel(selectedSetting.priority)}
+                            </span>
+                            <span
+                              className={cn(
+                                'rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]',
+                                permissionStatusTone(selectedSetting.status),
+                              )}
+                            >
+                              {permissionStatusLabel(selectedSetting.status)}
+                            </span>
+                          </div>
+                        }
                       >
-                        <div className="rounded-2xl bg-white px-4 py-4 text-sm leading-7 text-[#747785]">
-                          {selectedSetting.id === 'privacy'
-                            ? 'Use this area to explain required macOS permissions and open the corresponding system settings.'
-                            : selectedSetting.id === 'scan-behavior'
-                              ? 'Use this area for scan depth, filters, and future cleanup scope toggles.'
-                              : 'Use this area for confirmation defaults, safe removals, and guardrails.'}
+                        <div className="space-y-4">
+                          <div className="grid gap-4 xl:grid-cols-2">
+                            <div className="rounded-[24px] border border-black/6 bg-white px-4 py-4">
+                              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">
+                                Why it matters
+                              </p>
+                              <p className="mt-3 text-sm leading-7 text-[#747785]">{selectedSetting.description}</p>
+                            </div>
+                            <div className="rounded-[24px] border border-black/6 bg-white px-4 py-4">
+                              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">
+                                If missing
+                              </p>
+                              <p className="mt-3 text-sm leading-7 text-[#747785]">{selectedSetting.impact}</p>
+                            </div>
+                          </div>
+
+                          <div className="rounded-[24px] border border-black/6 bg-[#FAFAFC] px-4 py-4">
+                            <div className="flex flex-wrap items-center gap-3">
+                              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">
+                                Current check
+                              </p>
+                              {permissionCheckLoading ? (
+                                <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-700">
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  Checking
+                                </span>
+                              ) : null}
+                            </div>
+                            <p className="mt-3 text-sm leading-7 text-[#747785]">{selectedSetting.statusDetail}</p>
+                            <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-[#747785]">
+                              <span>
+                                Last checked{' '}
+                                {permissionSnapshot ? formatDate(permissionSnapshot.checkedAt) : 'when the first snapshot is available'}
+                              </span>
+                              {permissionCheckError ? <span className="text-rose-700">{permissionCheckError}</span> : null}
+                            </div>
+                          </div>
+
+                          <div className="flex flex-col gap-3 sm:flex-row">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                void onOpenSystemSettings(selectedSetting.id);
+                              }}
+                              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#111215] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#252733]"
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                              {selectedSetting.actionLabel}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                void onRefreshPermissionSnapshot();
+                              }}
+                              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-black/6 bg-white px-4 py-3 text-sm font-semibold text-[#111215] transition hover:bg-[#F4F4F8]"
+                            >
+                              {permissionCheckLoading ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Sparkles className="h-4 w-4" />
+                              )}
+                              Retry check
+                            </button>
+                          </div>
+
+                          <div className="rounded-[24px] border border-amber-200 bg-amber-50 px-4 py-4 text-sm leading-7 text-amber-800">
+                            If macOS does not support a deep link for the exact page, the app falls back to the parent
+                            settings section so you still land close to the right control.
+                          </div>
                         </div>
                       </DetailCard>
                     </div>

@@ -69,6 +69,28 @@ export interface RemovalResult {
   failedPaths: RemovalFailure[];
 }
 
+export type PermissionSettingTarget =
+  | 'privacy'
+  | 'privacy-full-disk-access'
+  | 'privacy-accessibility'
+  | 'privacy-automation'
+  | 'login-items';
+
+export type PermissionPriority = 'required' | 'recommended' | 'optional';
+
+export type PermissionStatus = 'granted' | 'not-granted' | 'needs-manual-review' | 'unknown';
+
+export interface PermissionSnapshotItem {
+  target: PermissionSettingTarget;
+  status: PermissionStatus;
+  detail: string;
+}
+
+export interface PermissionSnapshot {
+  checkedAt: string;
+  permissions: PermissionSnapshotItem[];
+}
+
 export interface DesktopApi {
   listApps?: () => Promise<AppItem[]>;
   scanApp?: (app: AppItem) => Promise<ScanSummary>;
@@ -77,7 +99,8 @@ export interface DesktopApi {
   removePaths?: (targetPaths: string[]) => Promise<RemovalResult>;
   revealPath?: (targetPath: string) => Promise<void>;
   openPath?: (targetPath: string) => Promise<void>;
-  openPrivacySettings?: () => Promise<void>;
+  openSystemSettings?: (target: PermissionSettingTarget) => Promise<void>;
+  getPermissionSnapshot?: () => Promise<PermissionSnapshot>;
 }
 
 declare global {
