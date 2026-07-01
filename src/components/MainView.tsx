@@ -31,6 +31,7 @@ import type {
   StartupCategoryState,
   StartupItem,
   StartupSnapshot,
+  StartupAction,
 } from '../types';
 
 interface MainViewProps {
@@ -50,6 +51,8 @@ interface MainViewProps {
   startupError: string | null;
   startupItemDetail: StartupItem | null;
   startupItemDetailLoading: boolean;
+  startupActionLoading: boolean;
+  startupActionMessage: string | null;
   onModeChange: (mode: ProductMode) => void;
   onCleanupModeChange: (mode: CleanupMode) => void;
   onSelectApp: (app: AppItem) => void;
@@ -61,6 +64,7 @@ interface MainViewProps {
   onRefreshPermissionSnapshot: () => void | Promise<void>;
   onRefreshStartupSnapshot: () => void | Promise<void>;
   onSelectStartupItem: (itemId: string | null) => void | Promise<void>;
+  onRunStartupAction: (itemId: string, action: StartupAction) => void | Promise<void>;
   onCopyPath: (targetPath: string) => void | Promise<void>;
   onRevealPath: (targetPath: string) => void | Promise<void>;
   onOpenPath: (targetPath: string) => void | Promise<void>;
@@ -317,6 +321,22 @@ function startupStateLabel(state: StartupCategoryState) {
   }
 }
 
+function startupControlNote(item: StartupItem) {
+  if (item.category === 'login-items') {
+    return 'Managed by macOS. Review it in System Settings.';
+  }
+
+  if (item.requiresAdmin) {
+    return 'Requires admin. This build keeps the item visible in read-only mode.';
+  }
+
+  if (!item.supportsToggle) {
+    return 'Managed by another app or by the system. Direct toggle is not exposed here yet.';
+  }
+
+  return 'User Launch Agent controls are available for this item.';
+}
+
 function formatBytes(bytes: number) {
   if (bytes <= 0) {
     return '0 B';
@@ -502,6 +522,8 @@ export function MainView({
   startupError,
   startupItemDetail,
   startupItemDetailLoading,
+  startupActionLoading,
+  startupActionMessage,
   onModeChange,
   onCleanupModeChange,
   onSelectApp,
@@ -513,6 +535,7 @@ export function MainView({
   onRefreshPermissionSnapshot,
   onRefreshStartupSnapshot,
   onSelectStartupItem,
+  onRunStartupAction,
   onCopyPath,
   onRevealPath,
   onOpenPath,
@@ -673,6 +696,11 @@ export function MainView({
           {startupError}
         </div>
       ) : null}
+      {startupActionMessage ? (
+        <div className="rounded-[24px] border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm leading-7 text-emerald-800">
+          {startupActionMessage}
+        </div>
+      ) : null}
 
       {selectedStartup.id === 'login-items' ? (
         <DetailCard
@@ -790,7 +818,52 @@ export function MainView({
             </div>
           ) : null}
 
+          <div
+            className={cn(
+              'rounded-[24px] border px-4 py-4 text-sm leading-7',
+              startupDetail.supportsToggle
+                ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                : startupDetail.requiresAdmin
+                  ? 'border-amber-200 bg-amber-50 text-amber-800'
+                  : 'border-slate-200 bg-slate-50 text-slate-700',
+            )}
+          >
+            {startupControlNote(startupDetail)}
+          </div>
+
           <div className="flex flex-col gap-3 sm:flex-row">
+            <button
+              type="button"
+              disabled={!startupDetail.supportsToggle || startupActionLoading}
+              onClick={() => {
+                void onRunStartupAction(startupDetail.id, startupDetail.enabled === false ? 'enable' : 'disable');
+              }}
+              className={cn(
+                'inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition',
+                startupDetail.supportsToggle
+                  ? 'bg-[#111215] text-white hover:bg-[#252733]'
+                  : 'cursor-not-allowed border border-black/6 bg-white text-[#9EA2AE]',
+              )}
+            >
+              {startupActionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ToggleRight className="h-4 w-4" />}
+              {startupDetail.enabled === false ? 'Enable' : 'Disable'}
+            </button>
+            <button
+              type="button"
+              disabled={!startupDetail.supportsToggle || startupActionLoading}
+              onClick={() => {
+                void onRunStartupAction(startupDetail.id, 'reload');
+              }}
+              className={cn(
+                'inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition',
+                startupDetail.supportsToggle
+                  ? 'border border-black/6 bg-white text-[#111215] hover:bg-[#F4F4F8]'
+                  : 'cursor-not-allowed border border-black/6 bg-white text-[#9EA2AE]',
+              )}
+            >
+              {startupActionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+              Reload
+            </button>
             {startupDetail.plistPath ? (
               <>
                 <button
@@ -813,6 +886,16 @@ export function MainView({
                   <Copy className="h-4 w-4" />
                   Copy plist path
                 </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void onOpenPath(startupDetail.plistPath!);
+                  }}
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl border border-black/6 bg-white px-4 py-3 text-sm font-semibold text-[#111215] transition hover:bg-[#F4F4F8]"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  Open plist
+                </button>
               </>
             ) : null}
             {startupDetail.executablePath ? (
@@ -822,11 +905,21 @@ export function MainView({
                   void onOpenPath(startupDetail.executablePath!);
                 }}
                 className="inline-flex items-center justify-center gap-2 rounded-2xl border border-black/6 bg-white px-4 py-3 text-sm font-semibold text-[#111215] transition hover:bg-[#F4F4F8]"
-              >
-                <ExternalLink className="h-4 w-4" />
-                Open executable
-              </button>
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  Open executable
+                </button>
             ) : null}
+            <button
+              type="button"
+              onClick={() => {
+                void onOpenSystemSettings('login-items');
+              }}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-black/6 bg-white px-4 py-3 text-sm font-semibold text-[#111215] transition hover:bg-[#F4F4F8]"
+            >
+              <ExternalLink className="h-4 w-4" />
+              Open Login Items
+            </button>
           </div>
         </DetailCard>
       ) : (

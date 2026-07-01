@@ -141,6 +141,15 @@ export interface StartupSnapshot {
   globalError: string | null;
 }
 
+export type StartupAction = 'enable' | 'disable' | 'reload';
+
+export interface StartupActionResult {
+  action: StartupAction;
+  ok: boolean;
+  item: StartupItem | null;
+  message: string;
+}
+
 export interface DesktopApi {
   listApps?: () => Promise<AppItem[]>;
   scanApp?: (app: AppItem) => Promise<ScanSummary>;
@@ -153,6 +162,7 @@ export interface DesktopApi {
   getPermissionSnapshot?: () => Promise<PermissionSnapshot>;
   listStartupItems?: () => Promise<StartupSnapshot>;
   getStartupItemDetails?: (itemId: string) => Promise<StartupItem | null>;
+  runStartupAction?: (itemId: string, action: StartupAction) => Promise<StartupActionResult>;
 }
 
 declare global {

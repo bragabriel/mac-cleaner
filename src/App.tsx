@@ -14,6 +14,7 @@ import type {
   CleanupMode,
   PermissionSettingTarget,
   PermissionSnapshot,
+  StartupAction,
   StartupItem,
   StartupSnapshot,
   ProductMode,
@@ -57,6 +58,8 @@ export default function App() {
   const [startupError, setStartupError] = useState<string | null>(null);
   const [startupItemDetail, setStartupItemDetail] = useState<StartupItem | null>(null);
   const [startupItemDetailLoading, setStartupItemDetailLoading] = useState(false);
+  const [startupActionLoading, setStartupActionLoading] = useState(false);
+  const [startupActionMessage, setStartupActionMessage] = useState<string | null>(null);
   const progressIntervalRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -175,6 +178,68 @@ export default function App() {
 
     void refreshStartupSnapshot();
   }, [mode]);
+
+  const runStartupAction = async (itemId: string, action: StartupAction) => {
+    setStartupActionLoading(true);
+    setStartupActionMessage(null);
+    setStartupError(null);
+
+    try {
+      if (window.macCleaner?.runStartupAction) {
+        const result = await window.macCleaner.runStartupAction(itemId, action);
+        setStartupActionMessage(result.message);
+        await refreshStartupSnapshot();
+        await loadStartupItemDetail(result.item?.id ?? itemId);
+      } else {
+        setStartupSnapshot((current) => {
+          const baseSnapshot = current ?? MOCK_STARTUP_SNAPSHOT;
+          const nextItems = baseSnapshot.items.map((item) => {
+            if (item.id !== itemId) {
+              return item;
+            }
+
+            if (action === 'reload') {
+              return {
+                ...item,
+                loaded: true,
+                lastExitStatus: 0,
+              };
+            }
+
+            const nextEnabled = action === 'enable';
+            return {
+              ...item,
+              enabled: nextEnabled,
+              disabledInPlist: !nextEnabled,
+              loaded: nextEnabled,
+              lastExitStatus: 0,
+            };
+          });
+
+          const nextCategories = baseSnapshot.categories.map((category) => ({
+            ...category,
+            count: nextItems.filter((item) => item.category === category.id).length,
+          }));
+
+          const nextSnapshot = {
+            ...baseSnapshot,
+            checkedAt: new Date().toISOString(),
+            items: nextItems,
+            categories: nextCategories,
+          };
+
+          setStartupItemDetail(nextItems.find((item) => item.id === itemId) ?? null);
+          return nextSnapshot;
+        });
+
+        setStartupActionMessage(`${action} completed in preview mode.`);
+      }
+    } catch (error) {
+      setStartupError(error instanceof Error ? error.message : 'Startup action failed.');
+    } finally {
+      setStartupActionLoading(false);
+    }
+  };
 
   const filteredApps = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -376,10 +441,13 @@ export default function App() {
         startupError={startupError}
         startupItemDetail={startupItemDetail}
         startupItemDetailLoading={startupItemDetailLoading}
+        startupActionLoading={startupActionLoading}
+        startupActionMessage={startupActionMessage}
         onOpenSystemSettings={(target: PermissionSettingTarget) => window.macCleaner?.openSystemSettings?.(target)}
         onRefreshPermissionSnapshot={refreshPermissionSnapshot}
         onRefreshStartupSnapshot={refreshStartupSnapshot}
         onSelectStartupItem={loadStartupItemDetail}
+        onRunStartupAction={runStartupAction}
         onCopyPath={handleCopyPath}
         onRevealPath={handleRevealPath}
         onOpenPath={handleOpenPath}

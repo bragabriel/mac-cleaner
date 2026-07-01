@@ -68,6 +68,10 @@ function normalizeKeepAlive(value) {
   return null;
 }
 
+function supportsToggle(category, requiresAdmin, errorMessage = null) {
+  return category === 'launch-agents-user' && !requiresAdmin && !errorMessage;
+}
+
 async function readPlistJson(plistPath) {
   const { stdout } = await execFileAsync('plutil', ['-convert', 'json', '-o', '-', plistPath], {
     maxBuffer: 1024 * 1024 * 4,
@@ -113,7 +117,7 @@ async function readStartupPlist({
     lastExitStatus: null,
     scope,
     requiresAdmin,
-    supportsToggle: !requiresAdmin,
+    supportsToggle: supportsToggle(category, requiresAdmin),
     source: 'plist',
     domain,
     errorMessage: null,
@@ -149,7 +153,7 @@ function buildStartupErrorItem({
     lastExitStatus: null,
     scope,
     requiresAdmin,
-    supportsToggle: !requiresAdmin,
+    supportsToggle: supportsToggle(category, requiresAdmin, error instanceof Error ? error.message : 'Unable to parse plist.'),
     source: 'plist',
     domain,
     errorMessage: error instanceof Error ? error.message : 'Unable to parse plist.',
