@@ -417,225 +417,6 @@ export function MainView({
     return path;
   }, [app, mode, selectedCleanup.title, selectedResult, selectedSetting.title, selectedStartup.title]);
 
-  const summaryPanel =
-    summary && (mode === 'uninstall' || mode === 'cleanup') ? (
-      <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-[26px] border border-black/6 bg-white">
-        <div className="border-b border-black/6 px-5 py-4">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">Scan Results</p>
-              <h3 className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-[#111215]">{summary.title}</h3>
-              <p className="mt-2 text-sm leading-7 text-[#747785]">
-                {summary.subtitle || `${summaryItems.length} candidates found. Review, select, and remove here.`}
-              </p>
-            </div>
-            <div className="grid grid-cols-2 gap-3 lg:min-w-[250px]">
-              <InfoChip label="Selected" value={`${selectedCount} of ${summaryItems.length}`} />
-              <InfoChip label="Selected Size" value={formatBytes(selectedBytes)} />
-            </div>
-          </div>
-
-          <div className="mt-6 h-2 overflow-hidden rounded-full bg-[#E7E8EE]">
-            <div
-              className="h-full rounded-full bg-[linear-gradient(90deg,#7263FF_0%,#9E95FF_100%)]"
-              style={{width: `${progressValue}%`}}
-            />
-          </div>
-
-          <div className="mt-5 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-            <div className="flex flex-wrap gap-3 text-xs text-[#747785]">
-              <span className="rounded-full border border-black/6 bg-[#FAFAFC] px-3 py-1.5">
-                {scannedRoots.length} roots scanned
-              </span>
-              {inaccessibleRoots.length ? (
-                <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-amber-700">
-                  {inaccessibleRoots.length} restricted roots
-                </span>
-              ) : null}
-            </div>
-
-            <div className="flex flex-wrap gap-3">
-              <button
-                type="button"
-                onClick={onToggleAll}
-                className="rounded-2xl border border-black/6 bg-white px-4 py-3 text-sm font-semibold text-[#111215] transition hover:bg-[#F4F4F8]"
-              >
-                {selectedCount === summaryItems.length ? 'Unselect all' : 'Select all'}
-              </button>
-              <button
-                type="button"
-                onClick={onRemoveSelected}
-                disabled={!selectedCount || scanStatus.removing}
-                className="rounded-2xl bg-[#111215] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#252733] disabled:cursor-not-allowed disabled:opacity-35"
-              >
-                Remove {selectedCount} selected
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid min-h-0 flex-1 gap-0 border-t border-black/6 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
-          <div className="min-h-0 overflow-hidden border-b border-black/6 xl:border-b-0 xl:border-r xl:border-black/6">
-            <div className="h-full overflow-y-auto">
-              {summaryItems.length ? (
-                summaryItems.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => setSelectedResultId(item.id)}
-                    className={[
-                      'flex w-full items-start gap-4 border-b border-black/6 px-5 py-4 text-left transition last:border-b-0',
-                      selectedResult?.id === item.id ? 'bg-[#F4F1FF]' : 'bg-white hover:bg-[#FAFAFC]',
-                    ].join(' ')}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={item.selected ?? false}
-                      onChange={() => onToggleItem(item.id)}
-                      onClick={(event) => event.stopPropagation()}
-                      className="mt-0.5 h-4 w-4 rounded border-[#C8CBD4] text-[#7263FF] focus:ring-[#7263FF]"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="truncate text-sm font-semibold text-[#111215]">{item.label}</p>
-                        <span
-                          className={[
-                            'rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em]',
-                            confidenceTone(item.confidence),
-                          ].join(' ')}
-                        >
-                          {item.confidence}
-                        </span>
-                      </div>
-                      <p className="mt-1 truncate text-xs text-[#747785]">{item.path}</p>
-                      <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-[#747785]">
-                        <span>{categoryLabel(item.category)}</span>
-                        <span>{formatBytes(item.sizeBytes)}</span>
-                        <span>{formatDate(item.modifiedAt)}</span>
-                      </div>
-                    </div>
-                  </button>
-                ))
-              ) : (
-                <div className="px-5 py-8 text-sm text-[#747785]">Nothing found in this scan.</div>
-              )}
-            </div>
-          </div>
-
-          <div className="min-h-0 overflow-hidden bg-[#FAFAFC]">
-            <div className="h-full overflow-y-auto p-5">
-              {selectedResult ? (
-                <div className="space-y-4">
-                  <div className="rounded-[22px] border border-black/6 bg-white p-4">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">
-                          Selected item
-                        </p>
-                        <h4 className="mt-2 text-lg font-semibold text-[#111215]">{selectedResult.label}</h4>
-                      </div>
-                      <span
-                        className={[
-                          'rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]',
-                          confidenceTone(selectedResult.confidence),
-                        ].join(' ')}
-                      >
-                        {selectedResult.confidence} confidence
-                      </span>
-                    </div>
-
-                    <div className="mt-4 space-y-3 text-sm text-[#747785]">
-                      <div>
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">Path</p>
-                        <p className="mt-1 break-all text-[#111215]">{selectedResult.path}</p>
-                      </div>
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <InfoChip label="Type" value={categoryLabel(selectedResult.category)} />
-                        <InfoChip label="Size" value={formatBytes(selectedResult.sizeBytes)} />
-                      </div>
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <InfoChip label="Modified" value={formatDate(selectedResult.modifiedAt)} />
-                        <InfoChip label="Scope" value={selectedResult.appName || 'App not identified'} />
-                      </div>
-                      <div className="rounded-2xl border border-black/6 bg-[#FAFAFC] px-4 py-3">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">Reason</p>
-                        <p className="mt-2 leading-7">{selectedResult.reason}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        void onCopyPath(selectedResult.path);
-                      }}
-                      className="inline-flex items-center justify-center gap-2 rounded-2xl border border-black/6 bg-white px-4 py-3 text-sm font-semibold text-[#111215] transition hover:bg-[#F4F4F8]"
-                    >
-                      <Copy className="h-4 w-4" />
-                      Copy path
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        void onRevealPath(selectedResult.path);
-                      }}
-                      className="inline-flex items-center justify-center gap-2 rounded-2xl border border-black/6 bg-white px-4 py-3 text-sm font-semibold text-[#111215] transition hover:bg-[#F4F4F8]"
-                    >
-                      <FolderOpen className="h-4 w-4" />
-                      Reveal
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        void onOpenPath(selectedResult.path);
-                      }}
-                      className="inline-flex items-center justify-center gap-2 rounded-2xl border border-black/6 bg-white px-4 py-3 text-sm font-semibold text-[#111215] transition hover:bg-[#F4F4F8]"
-                    >
-                      <ExternalLink className="h-4 w-4" />
-                      Open
-                    </button>
-                  </div>
-
-                  {scannedRoots.length ? (
-                    <div className="rounded-[22px] border border-black/6 bg-white p-4">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">Scanned roots</p>
-                      <div className="mt-3 space-y-2">
-                        {scannedRoots.map((root) => (
-                          <div key={root} className="rounded-2xl bg-[#FAFAFC] px-3 py-3 text-sm text-[#111215]">
-                            {root}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
-
-                  {inaccessibleRoots.length ? (
-                    <div className="rounded-[22px] border border-amber-200 bg-amber-50 p-4">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-700">
-                        Restricted roots
-                      </p>
-                      <div className="mt-3 space-y-2 text-sm text-amber-800">
-                        {inaccessibleRoots.map((root) => (
-                          <div key={root} className="rounded-2xl bg-white/70 px-3 py-3">
-                            {root}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-              ) : (
-                <div className="rounded-[22px] border border-dashed border-black/6 bg-white px-4 py-5 text-sm leading-7 text-[#747785]">
-                  Select a result to inspect its path, confidence, and actions here. Nothing else opens to the right.
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </section>
-    ) : null;
-
   const uninstallSecondColumn = app ? (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
       <DetailCard
@@ -687,70 +468,64 @@ export function MainView({
     </div>
   );
 
-  const uninstallThirdColumn = app ? (
-    summary ? (
-      <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-[26px] border border-black/6 bg-white">
-        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-black/6 px-4 py-4 lg:px-5">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">Scan results</p>
-                  <p className="mt-1 text-sm text-[#747785]">{summaryItems.length} leftovers found</p>
-          </div>
-          <div className="flex flex-1 flex-wrap items-center justify-start gap-6 sm:justify-center">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">Selected</p>
-              <p className="mt-1 text-sm font-semibold text-[#111215]">{selectedCount} of {summaryItems.length}</p>
-            </div>
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">Selected size</p>
-              <p className="mt-1 text-sm font-semibold text-[#111215]">{formatBytes(selectedBytes)}</p>
-            </div>
-          </div>
+  const scanResultsColumn = summary ? (
+    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-[26px] border border-black/6 bg-white">
+      <div className="grid grid-cols-2 items-start gap-x-5 gap-y-4 border-b border-black/6 px-4 py-4 lg:px-5 2xl:grid-cols-[minmax(0,1fr)_auto_auto_auto] 2xl:gap-x-8">
+        <div className="min-w-0 2xl:order-1">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">Scan results</p>
+                <p className="mt-1 text-sm text-[#747785]">{summaryItems.length} leftovers found</p>
+        </div>
+        <button
+          type="button"
+          onClick={onToggleAll}
+          className="justify-self-end text-sm font-semibold text-[#7263FF] transition hover:text-[#5748E5] 2xl:order-4"
+        >
+                {selectedCount === summaryItems.length ? 'Unselect all' : 'Select all'}
+        </button>
+        <div className="min-w-0 2xl:order-2">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">Selected</p>
+            <p className="mt-1 text-sm font-semibold text-[#111215]">{selectedCount} of {summaryItems.length}</p>
+        </div>
+        <div className="min-w-0 justify-self-end text-right 2xl:order-3 2xl:justify-self-start 2xl:text-left">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">Selected size</p>
+            <p className="mt-1 text-sm font-semibold text-[#111215]">{formatBytes(selectedBytes)}</p>
+        </div>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto">
+              {summaryItems.map((item) => (
           <button
+            key={item.id}
             type="button"
-            onClick={onToggleAll}
-            className="text-sm font-semibold text-[#7263FF] transition hover:text-[#5748E5]"
+            onClick={() => setSelectedResultId(item.id)}
+            className={`grid w-full grid-cols-[auto_minmax(0,1fr)_auto] gap-3 border-b border-black/6 px-4 py-4 text-left transition lg:px-5 ${
+              item.id === selectedResult?.id ? 'bg-[#F4F1FF]' : 'bg-white hover:bg-[#F8F7FB]'
+            }`}
           >
-                  {selectedCount === summaryItems.length ? 'Unselect all' : 'Select all'}
+            <input
+              type="checkbox"
+              checked={item.selected}
+              onChange={(event) => {
+                event.stopPropagation();
+                onToggleItem(item.id);
+              }}
+              onClick={(event) => event.stopPropagation()}
+              className="mt-1 h-4 w-4 rounded border-black/20 accent-[#7263FF]"
+            />
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-[#111215]">{item.label}</p>
+              <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-[#9EA2AE]">{item.category}</p>
+              <p className="mt-3 truncate text-xs text-[#747785]">{item.path}</p>
+            </div>
+            <span className="rounded-none border border-black/6 bg-white px-3 py-1 text-xs text-[#747785]">
+              {formatBytes(item.sizeBytes)}
+            </span>
           </button>
-        </div>
+        ))}
+      </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto">
-                {summaryItems.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => setSelectedResultId(item.id)}
-              className={cn(
-                'flex w-full items-start gap-4 border-b border-black/6 px-4 py-4 text-left transition last:border-b-0 lg:px-5',
-                selectedResult?.id === item.id ? 'bg-[#F4F1FF]' : 'bg-white hover:bg-[#F8F7FB]',
-              )}
-            >
-              <input
-                type="checkbox"
-                checked={item.selected}
-                onChange={(event) => {
-                  event.stopPropagation();
-                  onToggleItem(item.id);
-                }}
-                className="mt-1 h-4 w-4 rounded border-[#C8CBD4] text-[#7263FF] focus:ring-[#7263FF]"
-              />
-              <div className="min-w-0 flex-1">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-[#111215]">{item.label}</p>
-                    <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-[#9EA2AE]">{item.category}</p>
-                  </div>
-                  <span className="shrink-0 rounded-full border border-black/6 bg-white/70 px-3 py-1 text-[11px] text-[#747785]">
-                    {formatBytes(item.sizeBytes)}
-                  </span>
-                </div>
-                <p className="mt-3 break-all text-[11px] text-[#747785]">{item.path}</p>
-              </div>
-            </button>
-          ))}
-        </div>
-
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-black/6 px-4 py-4 lg:px-5">
+      <div className="border-t border-black/6 px-4 py-4 lg:px-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <span className="rounded-full border border-black/8 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#747785]">
             {usingDesktopApi ? 'Live Mac access' : 'Preview mode'}
           </span>
@@ -761,16 +536,32 @@ export function MainView({
             className="inline-flex items-center gap-2 rounded-2xl bg-[#111215] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#252733] disabled:cursor-not-allowed disabled:opacity-40"
           >
             {scanStatus.removing ? <Loader2 className="h-4 w-4 animate-spin" /> : <HardDriveDownload className="h-4 w-4" />}
-            {scanStatus.removing ? 'Removing...' : `Remove ${selectedCount} selected item${selectedCount === 1 ? '' : 's'}`}
+            {scanStatus.removing
+              ? 'Removing...'
+              : `Remove ${selectedCount} selected ${selectedCount === 1 ? 'item' : 'items'}`}
           </button>
         </div>
       </div>
+    </div>
+  ) : null;
+
+  const uninstallThirdColumn = app ? (
+    scanResultsColumn ? (
+      scanResultsColumn
     ) : (
-      <div className="flex h-full items-center justify-center rounded-[26px] border border-dashed border-black/8 bg-white/70 px-6 py-10 text-center text-sm leading-7 text-[#747785]">
+      <div className="flex h-full items-center justify-center rounded-[26px] border border-dashed border-black/6 bg-white px-6 text-center text-sm leading-7 text-[#747785]">
         Run the scan to open the right-side results column.
       </div>
     )
   ) : null;
+
+  const cleanupThirdColumn =
+    scanResultsColumn || (
+      <div className="flex h-full items-center justify-center rounded-[26px] border border-dashed border-black/6 bg-white px-6 text-center text-sm leading-7 text-[#747785]">
+        Run a cleanup scan to open the right-side results column.
+      </div>
+    );
+
 
   const cleanupSecondColumn = (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
@@ -779,7 +570,7 @@ export function MainView({
         title={selectedCleanup.title}
         subtitle="The profile summary stays compact so scan results can grow underneath without changing the window height."
       >
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1.3fr)_minmax(240px,0.7fr)]">
+        <div className="grid items-start gap-4">
           <div className="rounded-2xl bg-white px-4 py-4">
             <p className="text-[11px] uppercase tracking-[0.18em] text-[#9EA2AE]">Roots inspected</p>
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
@@ -790,39 +581,30 @@ export function MainView({
               ))}
             </div>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+          <div className="grid content-start items-start gap-3 2xl:grid-cols-1">
             <button
               type="button"
               onClick={() => {
                 void onRunScan();
               }}
               disabled={scanStatus.scanning || scanStatus.removing}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#111215] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#252733] disabled:cursor-not-allowed disabled:opacity-35"
+              className="inline-flex h-11 w-full min-w-0 items-center justify-center gap-2 rounded-2xl bg-[#111215] px-3 py-2.5 text-xs font-semibold leading-none text-white transition hover:bg-[#252733] disabled:cursor-not-allowed disabled:opacity-35 sm:px-4 sm:text-sm"
             >
               {scanStatus.scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <HardDriveDownload className="h-4 w-4" />}
-              {scanStatus.scanning ? 'Scanning...' : 'Run cleanup scan'}
+              <span className="min-w-0 truncate">{scanStatus.scanning ? 'Scanning...' : 'Run cleanup scan'}</span>
             </button>
             <button
               type="button"
               onClick={onOpenPrivacySettings}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-black/6 bg-white px-4 py-3 text-sm font-semibold text-[#111215] transition hover:bg-[#F4F4F8]"
+              className="inline-flex h-11 w-full min-w-0 items-center justify-center gap-2 rounded-2xl border border-black/6 bg-white px-3 py-2.5 text-xs font-semibold leading-none text-[#111215] transition hover:bg-[#F4F4F8] sm:px-4 sm:text-sm"
             >
               <ShieldAlert className="h-4 w-4" />
-              Review permissions
+              <span className="min-w-0 truncate">Review permissions</span>
             </button>
           </div>
         </div>
       </DetailCard>
 
-      <div className="min-h-0 flex-1 overflow-hidden">
-        {summaryPanel ? (
-          summaryPanel
-        ) : (
-          <div className="rounded-[26px] border border-dashed border-black/6 bg-white px-5 py-6 text-sm leading-7 text-[#747785]">
-            Run a cleanup scan and the review list will grow downward here inside the final column.
-          </div>
-        )}
-      </div>
     </div>
   );
 
@@ -919,7 +701,7 @@ export function MainView({
             <div
               className={cn(
                 'grid h-full min-h-0 gap-3 p-3 lg:gap-4 lg:p-4',
-                mode === 'uninstall'
+                mode === 'uninstall' || mode === 'cleanup'
                   ? 'md:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[minmax(260px,0.85fr)_minmax(320px,1fr)_minmax(320px,0.95fr)]'
                   : 'md:grid-cols-[300px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)]',
               )}
@@ -981,11 +763,14 @@ export function MainView({
                   </Panel>
                   <Panel
                     title={selectedCleanup.title}
-                    subtitle="Profile details stay at the top. Scan review expands underneath in the same panel."
+                    subtitle="Profile details stay in the middle column."
                     wide
                     header={false}
                   >
-                    <div className="h-full min-h-0 p-4 lg:p-5">{cleanupSecondColumn}</div>
+                    <div className="h-full min-h-0 overflow-hidden p-4 lg:p-5">{cleanupSecondColumn}</div>
+                  </Panel>
+                  <Panel title={summary ? summary.title : 'Scan Results'} subtitle="Cleanup scan results expand into this right-side column." wide header={false}>
+                    <div className="h-full min-h-0 overflow-hidden p-4 lg:p-5">{cleanupThirdColumn}</div>
                   </Panel>
                 </>
               ) : null}
