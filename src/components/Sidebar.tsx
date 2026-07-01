@@ -47,12 +47,12 @@ interface SidebarProps {
 export function Sidebar({mode, onModeChange}: SidebarProps) {
   return (
     <aside className="hidden w-[284px] shrink-0 border-r border-white/8 bg-[#101114] text-white lg:flex">
-      <div className="flex min-h-screen w-full flex-col">
+      <div className="flex h-screen w-full flex-col">
         <div className="border-b border-white/8 px-5 py-5">
           <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/42">Mac Cleaner</p>
-          <h1 className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-white">Column Workspace</h1>
+          <h1 className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-white">Mac Cleaner</h1>
           <p className="mt-3 text-sm leading-6 text-white/58">
-            Navegação hierárquica por colunas, como Finder, sem trocar de página.
+            Uninstall apps, clean leftovers, and review what still deserves space on this Mac.
           </p>
         </div>
 
@@ -92,8 +92,8 @@ export function Sidebar({mode, onModeChange}: SidebarProps) {
 
         <div className="border-t border-white/8 px-5 py-4">
           <div className="rounded-[18px] border border-white/8 bg-white/[0.04] px-4 py-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/36">Flow</p>
-            <p className="mt-3 text-sm leading-6 text-white/58">Sidebar fixa, cada clique abre mais uma coluna à direita.</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/36">Focus</p>
+            <p className="mt-3 text-sm leading-6 text-white/58">Prioritize useful cleanup work: apps, orphan files, system junk, and startup items.</p>
           </div>
         </div>
       </div>

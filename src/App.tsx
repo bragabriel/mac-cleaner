@@ -240,7 +240,7 @@ export default function App() {
   };
 
   return (
-    <div className="flex min-h-screen bg-transparent text-[color:var(--color-text-primary)]">
+    <div className="flex h-screen overflow-hidden bg-transparent text-[color:var(--color-text-primary)]">
       <Sidebar mode={mode} onModeChange={setMode} />
 
       <MainView
