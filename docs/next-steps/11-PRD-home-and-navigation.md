@@ -38,4 +38,7 @@ Redesenhar a arquitetura de navegacao para ficar clara, minimalista e escalavel.
 
 - home com 3 entradas principais;
 - navegacao dedicada para `Home`, `Uninstall App`, `Residues` e `System`;
+- profundidade horizontal maxima de duas colunas de conteudo alem da sidebar fixa;
+- terceiro nivel em diante cresce para baixo dentro da coluna final, com scroll interno;
+- viewport operacional fixa para notebook; quem rola sao os paineis internos;
 - visual mais limpo e direto do que a tela anterior.

@@ -15,6 +15,7 @@ export type ScanItemCategory =
   | 'containers'
   | 'group-containers'
   | 'saved-state'
+  | 'hidden'
   | 'other';
 
 export interface AppItem {

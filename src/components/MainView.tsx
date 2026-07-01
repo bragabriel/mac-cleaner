@@ -1,4 +1,4 @@
-import {useEffect, useMemo, useRef, useState} from 'react';
+import {type ReactNode, useEffect, useMemo, useState} from 'react';
 import {
   AlertTriangle,
   AppWindowMac,
@@ -48,63 +48,81 @@ interface MainViewProps {
   onCancelRemoval: () => void;
 }
 
-type BrowserColumn = {
-  key: string;
-  title: string;
-  subtitle?: string;
-  content: React.ReactNode;
-};
-
 const cleanupEntries: Array<{
   id: CleanupMode;
   title: string;
   subtitle: string;
-  roots: string[];
   icon: typeof Sparkles;
+  roots: string[];
 }> = [
   {
     id: 'residues',
-    title: 'Orphan Files',
-    subtitle: 'Leftovers from apps that already left the Mac.',
+    title: 'App Residues',
+    subtitle: 'Scan common macOS locations for leftovers from removed apps.',
+    icon: Sparkles,
     roots: [
       '~/Library/Application Support',
+      '~/Library/Preferences',
+      '~/Library/Caches',
       '~/Library/Containers',
       '~/Library/Group Containers',
-      '~/Library/Preferences',
       '~/Library/Logs',
+      '~/Library/Saved Application State',
     ],
-    icon: Sparkles,
   },
   {
     id: 'system',
     title: 'System Junk',
-    subtitle: 'Caches, logs, and stale application state.',
-    roots: ['~/Library/Caches', '~/Library/Logs', '~/Library/Saved Application State', '~/Library/WebKit', '/private/var/tmp'],
-    icon: Trash2,
+    subtitle: 'Inspect generic cleanup targets like caches, logs, and transient data.',
+    icon: HardDriveDownload,
+    roots: ['~/Library/Caches', '~/Library/Logs', '~/Library/Saved Application State'],
   },
 ];
 
-const homeEntries = [
+const homeEntries: Array<{
+  id: string;
+  title: string;
+  subtitle: string;
+  mode: ProductMode;
+  cleanupMode?: CleanupMode;
+  icon: typeof Home;
+}> = [
   {
     id: 'home-uninstall',
     title: 'Uninstall Apps',
-    subtitle: 'Browse installed apps, inspect them, and remove the bundle plus residues.',
-    mode: 'uninstall' as const,
+    subtitle: 'Inspect installed apps, open one detail column, then continue the flow vertically.',
+    mode: 'uninstall',
     icon: AppWindowMac,
   },
   {
-    id: 'home-cleanup',
-    title: 'Cleanup',
-    subtitle: 'Use cleanup profiles to scan orphan files and generic junk.',
-    mode: 'cleanup' as const,
+    id: 'home-orphans',
+    title: 'Residues',
+    subtitle: 'Find leftovers from apps that are already gone.',
+    mode: 'cleanup',
+    cleanupMode: 'residues',
     icon: Sparkles,
+  },
+  {
+    id: 'home-system',
+    title: 'System Junk',
+    subtitle: 'Review caches, logs, and other generic cleanup candidates.',
+    mode: 'cleanup',
+    cleanupMode: 'system',
+    icon: HardDriveDownload,
   },
   {
     id: 'home-startup',
     title: 'Startup Items',
-    subtitle: 'Inspect login and launch behavior in a column flow.',
-    mode: 'startup' as const,
+    subtitle: 'Keep launch agents and login items visible without adding more side columns.',
+    mode: 'startup',
     icon: ToggleRight,
+  },
+  {
+    id: 'home-settings',
+    title: 'Settings',
+    subtitle: 'Permissions, scan behavior, and safety defaults in the same final column pattern.',
+    mode: 'settings',
+    icon: Settings,
   },
 ];
 
@@ -112,17 +130,17 @@ const startupEntries = [
   {
     id: 'login-items',
     title: 'Login Items',
-    subtitle: 'Apps that launch after sign in.',
+    subtitle: 'Apps configured to launch when the user session starts.',
   },
   {
     id: 'launch-agents',
     title: 'Launch Agents',
-    subtitle: 'User-level launchd tasks and helpers.',
+    subtitle: 'Per-user launchd services and helper jobs.',
   },
   {
     id: 'launch-daemons',
     title: 'Launch Daemons',
-    subtitle: 'System launch services and background jobs.',
+    subtitle: 'System-wide launchd services and background processes.',
   },
 ];
 
@@ -130,17 +148,17 @@ const settingsEntries = [
   {
     id: 'privacy',
     title: 'Privacy Permissions',
-    subtitle: 'Grant full disk access and transparency permissions.',
+    subtitle: 'Explain required macOS permissions and why scans may miss protected folders.',
   },
   {
     id: 'scan-behavior',
     title: 'Scan Behavior',
-    subtitle: 'Choose how aggressive the scan should be.',
+    subtitle: 'Tune how aggressive scans should be and which roots are included.',
   },
   {
     id: 'safety',
     title: 'Safety',
-    subtitle: 'What always requires explicit confirmation.',
+    subtitle: 'Define confirmation defaults and guardrails for destructive operations.',
   },
 ];
 
@@ -182,6 +200,8 @@ function categoryLabel(category: ScanItem['category']) {
       return 'Group Containers';
     case 'saved-state':
       return 'Saved State';
+    case 'hidden':
+      return 'Hidden';
     default:
       return 'Other';
   }
@@ -198,7 +218,36 @@ function confidenceTone(confidence: ScanItem['confidence']) {
   }
 }
 
-function renderListColumn<T extends {id: string; title: string; subtitle: string}>({
+function Panel({
+  title,
+  subtitle,
+  children,
+  wide = false,
+  scroll = false,
+}: {
+  title: string;
+  subtitle?: string;
+  children: ReactNode;
+  wide?: boolean;
+  scroll?: boolean;
+}) {
+  return (
+    <section
+      className={[
+        'flex h-full min-h-0 flex-col overflow-hidden rounded-[28px] border border-black/6 bg-white',
+        wide ? 'min-w-0' : '',
+      ].join(' ')}
+    >
+      <header className="border-b border-black/6 px-5 py-4">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#9EA2AE]">{title}</p>
+        {subtitle ? <p className="mt-2 text-sm leading-6 text-[#747785]">{subtitle}</p> : null}
+      </header>
+      <div className={scroll ? 'min-h-0 flex-1 overflow-y-auto' : 'min-h-0 flex-1'}>{children}</div>
+    </section>
+  );
+}
+
+function ListColumn<T extends {id: string; title: string; subtitle: string}>({
   entries,
   activeId,
   onSelect,
@@ -207,7 +256,7 @@ function renderListColumn<T extends {id: string; title: string; subtitle: string
   entries: T[];
   activeId: string | null;
   onSelect: (entry: T) => void;
-  rightMeta?: (entry: T) => React.ReactNode;
+  rightMeta?: (entry: T) => ReactNode;
 }) {
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
@@ -236,15 +285,44 @@ function renderListColumn<T extends {id: string; title: string; subtitle: string
   );
 }
 
-function Column({title, subtitle, children}: {title: string; subtitle?: string; children: React.ReactNode}) {
+function DetailCard({
+  icon,
+  title,
+  subtitle,
+  rightSlot,
+  children,
+}: {
+  icon: ReactNode;
+  title: string;
+  subtitle: string;
+  rightSlot?: ReactNode;
+  children: ReactNode;
+}) {
   return (
-    <section className="finder-column flex h-full w-[340px] shrink-0 flex-col border-r border-black/6 bg-white last:border-r-0 xl:w-[380px]">
-      <header className="border-b border-black/6 px-5 py-4">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#9EA2AE]">{title}</p>
-        {subtitle ? <p className="mt-2 text-sm leading-6 text-[#747785]">{subtitle}</p> : null}
-      </header>
-      <div className="min-h-0 flex-1">{children}</div>
+    <section className="rounded-[26px] border border-black/6 bg-[#FAFAFC] p-5 lg:p-6">
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+        <div className="flex min-w-0 items-start gap-4">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-3xl bg-[#F1EEFF] text-[#7263FF]">
+            {icon}
+          </div>
+          <div className="min-w-0">
+            <h3 className="text-2xl font-semibold tracking-[-0.04em] text-[#111215]">{title}</h3>
+            <p className="mt-2 text-sm leading-7 text-[#747785]">{subtitle}</p>
+          </div>
+        </div>
+        {rightSlot ? <div className="shrink-0">{rightSlot}</div> : null}
+      </div>
+      <div className="mt-5">{children}</div>
     </section>
+  );
+}
+
+function InfoChip({label, value}: {label: string; value: string}) {
+  return (
+    <div className="rounded-2xl bg-white px-4 py-3">
+      <p className="text-[11px] uppercase tracking-[0.18em] text-[#9EA2AE]">{label}</p>
+      <p className="mt-1 text-sm font-semibold text-[#111215]">{value}</p>
+    </div>
   );
 }
 
@@ -273,7 +351,6 @@ export function MainView({
   onConfirmRemoval,
   onCancelRemoval,
 }: MainViewProps) {
-  const columnsRef = useRef<HTMLDivElement | null>(null);
   const [selectedHomeId, setSelectedHomeId] = useState<string | null>(null);
   const [selectedStartupId, setSelectedStartupId] = useState<string | null>(startupEntries[0]?.id ?? null);
   const [selectedSettingId, setSelectedSettingId] = useState<string | null>(settingsEntries[0]?.id ?? null);
@@ -283,22 +360,13 @@ export function MainView({
     setSelectedResultId(summary?.items[0]?.id ?? null);
   }, [summary]);
 
-  useEffect(() => {
-    const container = columnsRef.current;
-    if (!container) {
-      return;
-    }
-
-    container.scrollTo({
-      left: container.scrollWidth,
-      behavior: 'smooth',
-    });
-  });
-
   const selectedCleanup = cleanupEntries.find((entry) => entry.id === cleanupMode) ?? cleanupEntries[0];
+  const selectedStartup = startupEntries.find((entry) => entry.id === selectedStartupId) ?? startupEntries[0];
+  const selectedSetting = settingsEntries.find((entry) => entry.id === selectedSettingId) ?? settingsEntries[0];
   const selectedResult = summary?.items.find((item) => item.id === selectedResultId) ?? summary?.items[0] ?? null;
   const selectedCount = summary?.items.filter((item) => item.selected).length ?? 0;
-  const selectedBytes = summary?.items.filter((item) => item.selected).reduce((total, item) => total + item.sizeBytes, 0) ?? 0;
+  const selectedBytes =
+    summary?.items.filter((item) => item.selected).reduce((total, item) => total + item.sizeBytes, 0) ?? 0;
   const progressValue = scanStatus.scanning || scanStatus.removing ? scanStatus.progress : summary ? 100 : 0;
   const canRunScan = mode === 'uninstall' ? Boolean(app) : mode === 'cleanup';
 
@@ -307,6 +375,7 @@ export function MainView({
 
     if (mode === 'home') {
       path.push('Home');
+      return path;
     }
 
     if (mode === 'uninstall') {
@@ -314,495 +383,364 @@ export function MainView({
       if (app) {
         path.push(app.name);
       }
-      if (summary) {
-        path.push('Related Files');
-      }
       if (selectedResult) {
         path.push(selectedResult.label);
       }
+      return path;
     }
 
     if (mode === 'cleanup') {
       path.push('Cleanup', selectedCleanup.title);
-      if (summary) {
-        path.push('Candidates');
-      }
       if (selectedResult) {
         path.push(selectedResult.label);
       }
+      return path;
     }
 
     if (mode === 'startup') {
-      path.push('Startup Items');
-      const selected = startupEntries.find((entry) => entry.id === selectedStartupId);
-      if (selected) {
-        path.push(selected.title);
-      }
+      path.push('Startup', selectedStartup.title);
+      return path;
     }
 
-    if (mode === 'settings') {
-      path.push('Settings');
-      const selected = settingsEntries.find((entry) => entry.id === selectedSettingId);
-      if (selected) {
-        path.push(selected.title);
-      }
-    }
-
+    path.push('Settings', selectedSetting.title);
     return path;
-  }, [app, mode, selectedCleanup.title, selectedResult, selectedSettingId, selectedStartupId, summary]);
+  }, [app, mode, selectedCleanup.title, selectedResult, selectedSetting.title, selectedStartup.title]);
 
-  const columns: BrowserColumn[] = [];
-
-  if (mode === 'home') {
-    columns.push({
-      key: 'home-list',
-      title: 'Home',
-      subtitle: 'Escolha por onde começar. O próximo clique abre uma nova coluna, sem trocar de página.',
-      content: renderListColumn({
-        entries: homeEntries,
-        activeId: selectedHomeId,
-        onSelect: (entry) => {
-          setSelectedHomeId(entry.id);
-          onModeChange(entry.mode);
-        },
-      }),
-    });
-
-    if (selectedHomeId) {
-      const selectedHome = homeEntries.find((entry) => entry.id === selectedHomeId) ?? null;
-      if (selectedHome) {
-        const Icon = selectedHome.icon;
-        columns.push({
-          key: 'home-detail',
-          title: selectedHome.title,
-          subtitle: 'Atalho de navegação para abrir a área certa sem perder o contexto do browser.',
-          content: (
-            <div className="p-5">
-              <div className="rounded-[24px] border border-black/6 bg-[#FAFAFC] p-5">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F1EEFF] text-[#7263FF]">
-                  <Icon className="h-5 w-5" />
-                </div>
-                <h3 className="mt-4 text-2xl font-semibold tracking-[-0.04em] text-[#111215]">{selectedHome.title}</h3>
-                <p className="mt-3 text-sm leading-7 text-[#747785]">{selectedHome.subtitle}</p>
-                <button
-                  type="button"
-                  onClick={() => onModeChange(selectedHome.mode)}
-                  className="mt-5 rounded-2xl bg-[#111215] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#252733]"
-                >
-                  Open this section
-                </button>
-              </div>
+  const summaryPanel =
+    summary && (mode === 'uninstall' || mode === 'cleanup') ? (
+      <section className="min-h-0 rounded-[26px] border border-black/6 bg-white">
+        <div className="border-b border-black/6 px-5 py-4">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">Scan Results</p>
+              <h3 className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-[#111215]">{summary.title}</h3>
+              <p className="mt-2 text-sm leading-7 text-[#747785]">
+                {summary.subtitle || `${summary.items.length} candidates found. Review, select, and remove here.`}
+              </p>
             </div>
-          ),
-        });
-      }
-    }
-  }
-
-  if (mode === 'uninstall') {
-    columns.push({
-      key: 'apps-list',
-      title: 'Applications',
-      subtitle: 'Lista instalada. Escolher um app abre a próxima coluna com os detalhes.',
-      content: (
-        <div className="flex h-full flex-col">
-          <div className="border-b border-black/6 px-5 py-4">
-            <div className="flex items-center gap-3 rounded-[18px] border border-black/6 bg-[#FAFAFC] px-4 py-3">
-              <Search className="h-4 w-4 text-[#9EA2AE]" />
-              <input
-                value={searchQuery}
-                onChange={(event) => onSearchChange(event.target.value)}
-                placeholder="Search apps"
-                className="w-full bg-transparent text-sm text-[#111215] outline-none placeholder:text-[#9EA2AE]"
-              />
-            </div>
-          </div>
-          {renderListColumn({
-            entries: apps.map((entry) => ({
-              id: entry.id,
-              title: entry.name,
-              subtitle: entry.bundleId || entry.appPath,
-              sizeText: formatBytes(entry.sizeBytes),
-            })),
-            activeId: app?.id ?? null,
-            onSelect: (entry) => {
-              const selectedApp = apps.find((item) => item.id === entry.id);
-              if (selectedApp) {
-                onSelectApp(selectedApp);
-              }
-            },
-            rightMeta: (entry) => entry.sizeText,
-          })}
-        </div>
-      ),
-    });
-
-    if (app) {
-      columns.push({
-        key: `app-${app.id}`,
-        title: app.name,
-        subtitle: 'Detalhes do aplicativo. Rodar o scan profundo abre a próxima coluna com os arquivos relacionados.',
-        content: (
-          <div className="p-5">
-            <div className="rounded-[24px] border border-black/6 bg-[#FAFAFC] p-5">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-start gap-4">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-[#F1EEFF] text-[#7263FF]">
-                    <AppWindowMac className="h-6 w-6" />
-                  </div>
-                  <div>
-                    <h3 className="text-2xl font-semibold tracking-[-0.04em] text-[#111215]">{app.name}</h3>
-                    <p className="mt-2 text-sm text-[#747785]">{app.bundleId || 'Bundle ID unavailable'}</p>
-                  </div>
-                </div>
-                <div className="rounded-2xl bg-white px-4 py-3 text-right">
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-[#9EA2AE]">App size</p>
-                  <p className="mt-1 text-sm font-semibold text-[#111215]">{formatBytes(app.sizeBytes)}</p>
-                </div>
-              </div>
-
-              <div className="mt-5 rounded-2xl bg-white px-4 py-4">
-                <p className="text-[11px] uppercase tracking-[0.18em] text-[#9EA2AE]">Installed path</p>
-                <p className="mt-2 text-sm text-[#111215]">{app.appPath}</p>
-              </div>
-
-              <div className="mt-5 flex flex-wrap gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    void onRunScan();
-                  }}
-                  disabled={scanStatus.scanning || scanStatus.removing}
-                  className="inline-flex items-center gap-2 rounded-2xl bg-[#111215] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#252733] disabled:cursor-not-allowed disabled:opacity-35"
-                >
-                  {scanStatus.scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <AppWindowMac className="h-4 w-4" />}
-                  {scanStatus.scanning ? 'Scanning...' : 'Scan related files'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    void onOpenPath(app.appPath);
-                  }}
-                  className="inline-flex items-center gap-2 rounded-2xl border border-black/6 bg-white px-4 py-3 text-sm font-semibold text-[#111215] transition hover:bg-[#F4F4F8]"
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  Open in Finder
-                </button>
-              </div>
-
-              <div className="mt-5 rounded-2xl border border-dashed border-black/6 bg-white px-4 py-4">
-                <p className="text-[11px] uppercase tracking-[0.18em] text-[#9EA2AE]">Finder pattern</p>
-                <p className="mt-2 text-sm leading-6 text-[#747785]">
-                  Esta coluna não some quando o scan rodar. O resultado abre à direita, como próxima etapa da navegação.
-                </p>
-              </div>
-            </div>
-          </div>
-        ),
-      });
-    }
-  }
-
-  if (mode === 'cleanup') {
-    columns.push({
-      key: 'cleanup-list',
-      title: 'Cleanup Profiles',
-      subtitle: 'Escolha o tipo de limpeza. O detalhe abre na coluna seguinte e o scan gera outra coluna à direita.',
-      content: renderListColumn({
-        entries: cleanupEntries.map((entry) => ({
-          id: entry.id,
-          title: entry.title,
-          subtitle: entry.subtitle,
-        })),
-        activeId: cleanupMode,
-        onSelect: (entry) => {
-          onCleanupModeChange(entry.id as CleanupMode);
-        },
-      }),
-    });
-
-    columns.push({
-      key: `cleanup-${selectedCleanup.id}`,
-      title: selectedCleanup.title,
-      subtitle: 'Perfil ativo. Rodar o scan agora preserva esta coluna e abre candidatos à direita.',
-      content: (
-        <div className="p-5">
-          <div className="rounded-[24px] border border-black/6 bg-[#FAFAFC] p-5">
-            <div className="flex items-start gap-4">
-              <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-[#F1EEFF] text-[#7263FF]">
-                <selectedCleanup.icon className="h-6 w-6" />
-              </div>
-              <div>
-                <h3 className="text-2xl font-semibold tracking-[-0.04em] text-[#111215]">{selectedCleanup.title}</h3>
-                <p className="mt-3 text-sm leading-7 text-[#747785]">{selectedCleanup.subtitle}</p>
-              </div>
-            </div>
-
-            <div className="mt-5 rounded-2xl bg-white px-4 py-4">
-              <p className="text-[11px] uppercase tracking-[0.18em] text-[#9EA2AE]">Roots inspected</p>
-              <div className="mt-3 space-y-2">
-                {selectedCleanup.roots.map((root) => (
-                  <div key={root} className="rounded-2xl bg-[#FAFAFC] px-3 py-3 text-sm text-[#111215]">
-                    {root}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="mt-5 flex flex-wrap gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  void onRunScan();
-                }}
-                disabled={scanStatus.scanning || scanStatus.removing}
-                className="inline-flex items-center gap-2 rounded-2xl bg-[#111215] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#252733] disabled:cursor-not-allowed disabled:opacity-35"
-              >
-                {scanStatus.scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <HardDriveDownload className="h-4 w-4" />}
-                {scanStatus.scanning ? 'Scanning...' : 'Run cleanup scan'}
-              </button>
-              <button
-                type="button"
-                onClick={onOpenPrivacySettings}
-                className="inline-flex items-center gap-2 rounded-2xl border border-black/6 bg-white px-4 py-3 text-sm font-semibold text-[#111215] transition hover:bg-[#F4F4F8]"
-              >
-                <ShieldAlert className="h-4 w-4" />
-                Review permissions
-              </button>
-            </div>
-          </div>
-        </div>
-      ),
-    });
-  }
-
-  if (summary) {
-    columns.push({
-      key: `results-${summary.mode}`,
-      title: summary.title,
-      subtitle: 'Resultados do scan. Selecionar um item abre a coluna seguinte com o detalhe.',
-      content: (
-        <div className="flex h-full flex-col">
-          <div className="border-b border-black/6 px-5 py-4">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold text-[#111215]">{selectedCount} selected</p>
-                <p className="mt-1 text-xs text-[#747785]">{formatBytes(selectedBytes)} ready for removal</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={onToggleAll}
-                  className="rounded-2xl border border-black/6 bg-[#FAFAFC] px-3 py-2 text-xs font-semibold text-[#111215] transition hover:bg-[#F0F1F5]"
-                >
-                  {selectedCount === summary.items.length ? 'Unselect all' : 'Select all'}
-                </button>
-                <button
-                  type="button"
-                  onClick={onRemoveSelected}
-                  disabled={!selectedCount || scanStatus.scanning || scanStatus.removing}
-                  className="rounded-2xl bg-[#111215] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#252733] disabled:cursor-not-allowed disabled:opacity-35"
-                >
-                  Remove
-                </button>
-              </div>
-            </div>
-            <div className="mt-4 h-2 rounded-full bg-[#E7E8EE]">
-              <div
-                className="h-2 rounded-full bg-[linear-gradient(90deg,#7263FF_0%,#9E95FF_100%)] transition-all duration-300"
-                style={{width: `${progressValue}%`}}
-              />
+            <div className="grid grid-cols-2 gap-3 lg:min-w-[250px]">
+              <InfoChip label="Selected" value={`${selectedCount} of ${summary.items.length}`} />
+              <InfoChip label="Selected Size" value={formatBytes(selectedBytes)} />
             </div>
           </div>
 
-          {renderListColumn({
-            entries: summary.items.map((entry) => ({
-              id: entry.id,
-              title: entry.label,
-              subtitle: entry.path,
-              confidence: entry.confidence,
-              selected: Boolean(entry.selected),
-            })),
-            activeId: selectedResult?.id ?? null,
-            onSelect: (entry) => setSelectedResultId(entry.id),
-            rightMeta: (entry) => (entry.selected ? 'Queued' : entry.confidence),
-          })}
-        </div>
-      ),
-    });
-  }
+          <div className="mt-6 h-2 overflow-hidden rounded-full bg-[#E7E8EE]">
+            <div
+              className="h-full rounded-full bg-[linear-gradient(90deg,#7263FF_0%,#9E95FF_100%)]"
+              style={{width: `${progressValue}%`}}
+            />
+          </div>
 
-  if (summary && selectedResult) {
-    columns.push({
-      key: `result-detail-${selectedResult.id}`,
-      title: selectedResult.label,
-      subtitle: 'Detalhe do item selecionado. O caminho completo continua visível nas colunas anteriores.',
-      content: (
-        <div className="p-5">
-          <div className="rounded-[24px] border border-black/6 bg-[#FAFAFC] p-5">
-            <div className="flex flex-wrap items-center gap-2">
-              <span
-                className={[
-                  'rounded-full border px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em]',
-                  confidenceTone(selectedResult.confidence),
-                ].join(' ')}
-              >
-                {selectedResult.confidence}
+          <div className="mt-5 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <div className="flex flex-wrap gap-3 text-xs text-[#747785]">
+              <span className="rounded-full border border-black/6 bg-[#FAFAFC] px-3 py-1.5">
+                {summary.scannedRoots.length} roots scanned
               </span>
-              <span className="rounded-full border border-black/6 bg-white px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#747785]">
-                {categoryLabel(selectedResult.category)}
-              </span>
-              {selectedResult.appName ? (
-                <span className="rounded-full border border-black/6 bg-white px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#747785]">
-                  {selectedResult.appName}
+              {summary.inaccessibleRoots.length ? (
+                <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-amber-700">
+                  {summary.inaccessibleRoots.length} restricted roots
                 </span>
               ) : null}
             </div>
 
-            <h3 className="mt-4 text-2xl font-semibold tracking-[-0.04em] text-[#111215]">{selectedResult.label}</h3>
-            <p className="mt-3 text-sm leading-7 text-[#747785]">{selectedResult.reason}</p>
-
-            <div className="mt-5 grid gap-3 md:grid-cols-2">
-              <div className="rounded-2xl bg-white px-4 py-4">
-                <p className="text-[11px] uppercase tracking-[0.18em] text-[#9EA2AE]">Size</p>
-                <p className="mt-2 text-sm font-semibold text-[#111215]">{formatBytes(selectedResult.sizeBytes)}</p>
-              </div>
-              <div className="rounded-2xl bg-white px-4 py-4">
-                <p className="text-[11px] uppercase tracking-[0.18em] text-[#9EA2AE]">Modified</p>
-                <p className="mt-2 text-sm font-semibold text-[#111215]">{formatDate(selectedResult.modifiedAt)}</p>
-              </div>
-            </div>
-
-            <div className="mt-5 rounded-2xl bg-white px-4 py-4">
-              <p className="text-[11px] uppercase tracking-[0.18em] text-[#9EA2AE]">Filesystem path</p>
-              <p className="mt-2 break-all text-sm text-[#111215]">{selectedResult.path}</p>
-            </div>
-
-            <div className="mt-5 flex flex-wrap gap-3">
-              <label className="inline-flex items-center gap-3 rounded-2xl border border-black/6 bg-white px-4 py-3">
-                <input
-                  type="checkbox"
-                  checked={Boolean(selectedResult.selected)}
-                  onChange={() => onToggleItem(selectedResult.id)}
-                  className="h-4 w-4 rounded border-[#C8CBD4] text-[#7263FF] focus:ring-[#7263FF]"
-                />
-                <span className="text-sm font-semibold text-[#111215]">Include in removal</span>
-              </label>
+            <div className="flex flex-wrap gap-3">
               <button
                 type="button"
-                onClick={() => {
-                  void onCopyPath(selectedResult.path);
-                }}
-                className="inline-flex items-center gap-2 rounded-2xl border border-black/6 bg-white px-4 py-3 text-sm font-semibold text-[#111215] transition hover:bg-[#F4F4F8]"
+                onClick={onToggleAll}
+                className="rounded-2xl border border-black/6 bg-white px-4 py-3 text-sm font-semibold text-[#111215] transition hover:bg-[#F4F4F8]"
               >
-                <Copy className="h-4 w-4" />
-                Copy path
+                {selectedCount === summary.items.length ? 'Unselect all' : 'Select all'}
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  void onRevealPath(selectedResult.path);
-                }}
-                className="inline-flex items-center gap-2 rounded-2xl border border-black/6 bg-white px-4 py-3 text-sm font-semibold text-[#111215] transition hover:bg-[#F4F4F8]"
+                onClick={onRemoveSelected}
+                disabled={!selectedCount || scanStatus.removing}
+                className="rounded-2xl bg-[#111215] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#252733] disabled:cursor-not-allowed disabled:opacity-35"
               >
-                <FolderOpen className="h-4 w-4" />
-                Reveal
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  void onOpenPath(selectedResult.path);
-                }}
-                className="inline-flex items-center gap-2 rounded-2xl border border-black/6 bg-white px-4 py-3 text-sm font-semibold text-[#111215] transition hover:bg-[#F4F4F8]"
-              >
-                <ExternalLink className="h-4 w-4" />
-                Open
+                Remove {selectedCount} selected
               </button>
             </div>
           </div>
         </div>
-      ),
-    });
-  }
 
-  if (mode === 'startup') {
-    columns.push({
-      key: 'startup-list',
-      title: 'Startup Items',
-      subtitle: 'Estrutura pronta para seguir o mesmo padrão Finder quando essa área ganhar dados reais.',
-      content: renderListColumn({
-        entries: startupEntries,
-        activeId: selectedStartupId,
-        onSelect: (entry) => setSelectedStartupId(entry.id),
-      }),
-    });
-
-    const selectedStartup = startupEntries.find((entry) => entry.id === selectedStartupId) ?? startupEntries[0];
-    columns.push({
-      key: 'startup-detail',
-      title: selectedStartup.title,
-      subtitle: 'Coluna de detalhe preservando a navegação anterior.',
-      content: (
-        <div className="p-5">
-          <div className="rounded-[24px] border border-black/6 bg-[#FAFAFC] p-5">
-            <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-[#F1EEFF] text-[#7263FF]">
-              <ToggleRight className="h-6 w-6" />
-            </div>
-            <h3 className="mt-4 text-2xl font-semibold tracking-[-0.04em] text-[#111215]">{selectedStartup.title}</h3>
-            <p className="mt-3 text-sm leading-7 text-[#747785]">{selectedStartup.subtitle}</p>
-            <p className="mt-5 rounded-2xl bg-white px-4 py-4 text-sm leading-7 text-[#747785]">
-              Esta área ainda é placeholder, mas já obedece à navegação acumulativa por colunas em vez de telas separadas.
-            </p>
-          </div>
-        </div>
-      ),
-    });
-  }
-
-  if (mode === 'settings') {
-    columns.push({
-      key: 'settings-list',
-      title: 'Settings',
-      subtitle: 'Sessões de configuração usando a mesma navegação por coluna.',
-      content: renderListColumn({
-        entries: settingsEntries,
-        activeId: selectedSettingId,
-        onSelect: (entry) => setSelectedSettingId(entry.id),
-      }),
-    });
-
-    const selectedSetting = settingsEntries.find((entry) => entry.id === selectedSettingId) ?? settingsEntries[0];
-    columns.push({
-      key: 'settings-detail',
-      title: selectedSetting.title,
-      subtitle: 'Detalhe da sessão de configuração atualmente selecionada.',
-      content: (
-        <div className="p-5">
-          <div className="rounded-[24px] border border-black/6 bg-[#FAFAFC] p-5">
-            <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-[#F1EEFF] text-[#7263FF]">
-              <Settings className="h-6 w-6" />
-            </div>
-            <h3 className="mt-4 text-2xl font-semibold tracking-[-0.04em] text-[#111215]">{selectedSetting.title}</h3>
-            <p className="mt-3 text-sm leading-7 text-[#747785]">{selectedSetting.subtitle}</p>
-            <div className="mt-5 rounded-2xl bg-white px-4 py-4 text-sm leading-7 text-[#747785]">
-              {selectedSetting.id === 'privacy'
-                ? 'Use esta área para abrir permissões do macOS e explicar por que certas pastas protegidas podem não aparecer no scan.'
-                : selectedSetting.id === 'scan-behavior'
-                  ? 'Use esta área para agressividade do scan, filtros e roots incluídos.'
-                  : 'Use esta área para defaults de confirmação, regras seguras e remoção controlada.'}
+        <div className="grid min-h-0 gap-0 border-t border-black/6 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
+          <div className="min-h-0 border-b border-black/6 xl:border-b-0 xl:border-r xl:border-black/6">
+            <div className="max-h-[420px] overflow-y-auto xl:max-h-none xl:h-full">
+              {summary.items.length ? (
+                summary.items.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setSelectedResultId(item.id)}
+                    className={[
+                      'flex w-full items-start gap-4 border-b border-black/6 px-5 py-4 text-left transition last:border-b-0',
+                      selectedResult?.id === item.id ? 'bg-[#F4F1FF]' : 'bg-white hover:bg-[#FAFAFC]',
+                    ].join(' ')}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={item.selected ?? false}
+                      onChange={() => onToggleItem(item.id)}
+                      onClick={(event) => event.stopPropagation()}
+                      className="mt-0.5 h-4 w-4 rounded border-[#C8CBD4] text-[#7263FF] focus:ring-[#7263FF]"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="truncate text-sm font-semibold text-[#111215]">{item.label}</p>
+                        <span
+                          className={[
+                            'rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em]',
+                            confidenceTone(item.confidence),
+                          ].join(' ')}
+                        >
+                          {item.confidence}
+                        </span>
+                      </div>
+                      <p className="mt-1 truncate text-xs text-[#747785]">{item.path}</p>
+                      <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-[#747785]">
+                        <span>{categoryLabel(item.category)}</span>
+                        <span>{formatBytes(item.sizeBytes)}</span>
+                        <span>{formatDate(item.modifiedAt)}</span>
+                      </div>
+                    </div>
+                  </button>
+                ))
+              ) : (
+                <div className="px-5 py-8 text-sm text-[#747785]">Nothing found in this scan.</div>
+              )}
             </div>
           </div>
+
+          <div className="min-h-0 bg-[#FAFAFC]">
+            <div className="h-full overflow-y-auto p-5">
+              {selectedResult ? (
+                <div className="space-y-4">
+                  <div className="rounded-[22px] border border-black/6 bg-white p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">
+                          Selected item
+                        </p>
+                        <h4 className="mt-2 text-lg font-semibold text-[#111215]">{selectedResult.label}</h4>
+                      </div>
+                      <span
+                        className={[
+                          'rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]',
+                          confidenceTone(selectedResult.confidence),
+                        ].join(' ')}
+                      >
+                        {selectedResult.confidence} confidence
+                      </span>
+                    </div>
+
+                    <div className="mt-4 space-y-3 text-sm text-[#747785]">
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">Path</p>
+                        <p className="mt-1 break-all text-[#111215]">{selectedResult.path}</p>
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <InfoChip label="Type" value={categoryLabel(selectedResult.category)} />
+                        <InfoChip label="Size" value={formatBytes(selectedResult.sizeBytes)} />
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <InfoChip label="Modified" value={formatDate(selectedResult.modifiedAt)} />
+                        <InfoChip label="Scope" value={selectedResult.appName || 'App not identified'} />
+                      </div>
+                      <div className="rounded-2xl border border-black/6 bg-[#FAFAFC] px-4 py-3">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">Reason</p>
+                        <p className="mt-2 leading-7">{selectedResult.reason}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void onCopyPath(selectedResult.path);
+                      }}
+                      className="inline-flex items-center justify-center gap-2 rounded-2xl border border-black/6 bg-white px-4 py-3 text-sm font-semibold text-[#111215] transition hover:bg-[#F4F4F8]"
+                    >
+                      <Copy className="h-4 w-4" />
+                      Copy path
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void onRevealPath(selectedResult.path);
+                      }}
+                      className="inline-flex items-center justify-center gap-2 rounded-2xl border border-black/6 bg-white px-4 py-3 text-sm font-semibold text-[#111215] transition hover:bg-[#F4F4F8]"
+                    >
+                      <FolderOpen className="h-4 w-4" />
+                      Reveal
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void onOpenPath(selectedResult.path);
+                      }}
+                      className="inline-flex items-center justify-center gap-2 rounded-2xl border border-black/6 bg-white px-4 py-3 text-sm font-semibold text-[#111215] transition hover:bg-[#F4F4F8]"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                      Open
+                    </button>
+                  </div>
+
+                  {summary.scannedRoots.length ? (
+                    <div className="rounded-[22px] border border-black/6 bg-white p-4">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">Scanned roots</p>
+                      <div className="mt-3 space-y-2">
+                        {summary.scannedRoots.map((root) => (
+                          <div key={root} className="rounded-2xl bg-[#FAFAFC] px-3 py-3 text-sm text-[#111215]">
+                            {root}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {summary.inaccessibleRoots.length ? (
+                    <div className="rounded-[22px] border border-amber-200 bg-amber-50 p-4">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-700">
+                        Restricted roots
+                      </p>
+                      <div className="mt-3 space-y-2 text-sm text-amber-800">
+                        {summary.inaccessibleRoots.map((root) => (
+                          <div key={root} className="rounded-2xl bg-white/70 px-3 py-3">
+                            {root}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              ) : (
+                <div className="rounded-[22px] border border-dashed border-black/6 bg-white px-4 py-5 text-sm leading-7 text-[#747785]">
+                  Select a result to inspect its path, confidence, and actions here. Nothing else opens to the right.
+                </div>
+              )}
+            </div>
+          </div>
         </div>
-      ),
-    });
-  }
+      </section>
+    ) : null;
+
+  const uninstallSecondColumn = app ? (
+    <div className="flex min-h-0 flex-1 flex-col gap-4">
+      <DetailCard
+        icon={<AppWindowMac className="h-6 w-6" />}
+        title={app.name}
+        subtitle="App details, storage footprint, and related actions stay at the top of the final column."
+        rightSlot={<InfoChip label="App Size" value={formatBytes(app.sizeBytes)} />}
+      >
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1.3fr)_minmax(240px,0.7fr)]">
+          <div className="rounded-2xl bg-white px-4 py-4">
+            <p className="text-[11px] uppercase tracking-[0.18em] text-[#9EA2AE]">Installed path</p>
+            <p className="mt-2 break-all text-sm text-[#111215]">{app.appPath}</p>
+            <p className="mt-2 text-sm text-[#747785]">{app.bundleId || 'Bundle ID unavailable'}</p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+            <button
+              type="button"
+              onClick={() => {
+                void onRunScan();
+              }}
+              disabled={scanStatus.scanning || scanStatus.removing}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#111215] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#252733] disabled:cursor-not-allowed disabled:opacity-35"
+            >
+              {scanStatus.scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <AppWindowMac className="h-4 w-4" />}
+              {scanStatus.scanning ? 'Scanning...' : 'Scan related files'}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                void onOpenPath(app.appPath);
+              }}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-black/6 bg-white px-4 py-3 text-sm font-semibold text-[#111215] transition hover:bg-[#F4F4F8]"
+            >
+              <ExternalLink className="h-4 w-4" />
+              Open in Finder
+            </button>
+          </div>
+        </div>
+      </DetailCard>
+
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        {summaryPanel ? (
+          summaryPanel
+        ) : (
+          <div className="rounded-[26px] border border-dashed border-black/6 bg-white px-5 py-6 text-sm leading-7 text-[#747785]">
+            Run a scan and the results will appear below this detail card inside the same final column.
+          </div>
+        )}
+      </div>
+    </div>
+  ) : (
+    <div className="rounded-[26px] border border-dashed border-black/6 bg-white px-5 py-6 text-sm leading-7 text-[#747785]">
+      Select an app from the first column to open the final workspace column.
+    </div>
+  );
+
+  const cleanupSecondColumn = (
+    <div className="flex min-h-0 flex-1 flex-col gap-4">
+      <DetailCard
+        icon={<selectedCleanup.icon className="h-6 w-6" />}
+        title={selectedCleanup.title}
+        subtitle="The profile summary stays compact so scan results can grow underneath without changing the window height."
+      >
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1.3fr)_minmax(240px,0.7fr)]">
+          <div className="rounded-2xl bg-white px-4 py-4">
+            <p className="text-[11px] uppercase tracking-[0.18em] text-[#9EA2AE]">Roots inspected</p>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              {selectedCleanup.roots.map((root) => (
+                <div key={root} className="rounded-2xl bg-[#FAFAFC] px-3 py-3 text-sm text-[#111215]">
+                  {root}
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+            <button
+              type="button"
+              onClick={() => {
+                void onRunScan();
+              }}
+              disabled={scanStatus.scanning || scanStatus.removing}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#111215] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#252733] disabled:cursor-not-allowed disabled:opacity-35"
+            >
+              {scanStatus.scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <HardDriveDownload className="h-4 w-4" />}
+              {scanStatus.scanning ? 'Scanning...' : 'Run cleanup scan'}
+            </button>
+            <button
+              type="button"
+              onClick={onOpenPrivacySettings}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-black/6 bg-white px-4 py-3 text-sm font-semibold text-[#111215] transition hover:bg-[#F4F4F8]"
+            >
+              <ShieldAlert className="h-4 w-4" />
+              Review permissions
+            </button>
+          </div>
+        </div>
+      </DetailCard>
+
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        {summaryPanel ? (
+          summaryPanel
+        ) : (
+          <div className="rounded-[26px] border border-dashed border-black/6 bg-white px-5 py-6 text-sm leading-7 text-[#747785]">
+            Run a cleanup scan and the review list will grow downward here inside the final column.
+          </div>
+        )}
+      </div>
+    </div>
+  );
 
   return (
-    <main className="flex min-h-screen flex-1 flex-col overflow-hidden">
+    <main className="flex h-screen min-w-0 flex-1 flex-col overflow-hidden">
       <header className="border-b border-black/6 bg-white/72 px-5 py-4 backdrop-blur lg:px-6">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.26em] text-[#9EA2AE]">Finder style navigation</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.26em] text-[#9EA2AE]">Workspace</p>
             <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-[#747785]">
               {breadcrumbs.map((crumb, index) => (
                 <span key={`${crumb}-${index}`} className="inline-flex items-center gap-2">
@@ -817,6 +755,7 @@ export function MainView({
             <span className="rounded-full border border-black/8 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#747785]">
               {usingDesktopApi ? 'Live Mac access' : 'Preview mode'}
             </span>
+
             {(mode === 'uninstall' || mode === 'cleanup') && (
               <button
                 type="button"
@@ -826,7 +765,13 @@ export function MainView({
                 disabled={!canRunScan || scanStatus.scanning || scanStatus.removing}
                 className="inline-flex items-center gap-2 rounded-2xl bg-[#111215] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#252733] disabled:cursor-not-allowed disabled:opacity-40"
               >
-                {scanStatus.scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : mode === 'uninstall' ? <AppWindowMac className="h-4 w-4" /> : <HardDriveDownload className="h-4 w-4" />}
+                {scanStatus.scanning ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : mode === 'uninstall' ? (
+                  <AppWindowMac className="h-4 w-4" />
+                ) : (
+                  <HardDriveDownload className="h-4 w-4" />
+                )}
                 {scanStatus.scanning ? 'Scanning...' : mode === 'uninstall' ? 'Scan app' : 'Run cleanup'}
               </button>
             )}
@@ -836,13 +781,182 @@ export function MainView({
 
       <div className="flex-1 overflow-hidden p-3 lg:p-4">
         <div className="h-full overflow-hidden rounded-[30px] border border-black/8 bg-white shadow-[0_30px_80px_rgba(17,18,21,0.08)]">
-          <div ref={columnsRef} className="flex h-full overflow-x-auto overflow-y-hidden">
-            {columns.map((column) => (
-              <Column key={column.key} title={column.title} subtitle={column.subtitle}>
-                {column.content}
-              </Column>
-            ))}
-          </div>
+          {mode === 'home' ? (
+            <div className="h-full overflow-y-auto px-6 py-6 lg:px-8">
+              <div className="mx-auto max-w-6xl">
+                <div className="rounded-[28px] border border-black/6 bg-[#FAFAFC] p-6 lg:p-8">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.26em] text-[#9EA2AE]">Home</p>
+                  <h2 className="mt-3 text-3xl font-semibold tracking-[-0.04em] text-[#111215]">
+                    Choose what you want to clean or manage.
+                  </h2>
+                  <p className="mt-3 max-w-2xl text-sm leading-7 text-[#747785]">
+                    Every operational area stops at two content columns. Anything deeper continues vertically inside the
+                    final panel.
+                  </p>
+                </div>
+
+                <div className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                  {homeEntries.map((entry) => {
+                    const Icon = entry.icon;
+
+                    return (
+                      <button
+                        key={entry.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedHomeId(entry.id);
+                          if (entry.mode === 'cleanup' && entry.cleanupMode) {
+                            onCleanupModeChange(entry.cleanupMode);
+                          }
+                          onModeChange(entry.mode);
+                        }}
+                        className="group rounded-[28px] border border-black/6 bg-white p-6 text-left transition hover:-translate-y-0.5 hover:border-black/12 hover:shadow-[0_24px_60px_rgba(17,18,21,0.08)]"
+                      >
+                        <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-[#F1EEFF] text-[#7263FF]">
+                          <Icon className="h-7 w-7" />
+                        </div>
+                        <h3 className="mt-5 text-2xl font-semibold tracking-[-0.04em] text-[#111215]">{entry.title}</h3>
+                        <p className="mt-3 text-sm leading-7 text-[#747785]">{entry.subtitle}</p>
+                        <p className="mt-5 text-sm font-semibold text-[#111215]">Open section</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="grid h-full min-h-0 gap-3 p-3 md:grid-cols-[300px_minmax(0,1fr)] lg:gap-4 lg:p-4 xl:grid-cols-[320px_minmax(0,1fr)]">
+              {mode === 'uninstall' ? (
+                <>
+                  <Panel title="Applications" subtitle="Installed apps on this Mac." scroll>
+                    <div className="border-b border-black/6 px-5 py-4">
+                      <div className="flex items-center gap-3 rounded-[18px] border border-black/6 bg-[#FAFAFC] px-4 py-3">
+                        <Search className="h-4 w-4 text-[#9EA2AE]" />
+                        <input
+                          value={searchQuery}
+                          onChange={(event) => onSearchChange(event.target.value)}
+                          placeholder="Search apps"
+                          className="w-full bg-transparent text-sm text-[#111215] outline-none placeholder:text-[#9EA2AE]"
+                        />
+                      </div>
+                    </div>
+                    <ListColumn
+                      entries={apps.map((entry) => ({
+                        id: entry.id,
+                        title: entry.name,
+                        subtitle: entry.bundleId || entry.appPath,
+                        sizeText: formatBytes(entry.sizeBytes),
+                      }))}
+                      activeId={app?.id ?? null}
+                      onSelect={(entry) => {
+                        const selectedApp = apps.find((item) => item.id === entry.id);
+                        if (selectedApp) {
+                          onSelectApp(selectedApp);
+                        }
+                      }}
+                      rightMeta={(entry) => entry.sizeText}
+                    />
+                  </Panel>
+                  <Panel
+                    title={app ? app.name : 'App Workspace'}
+                    subtitle="Second and final content column. Deeper steps continue downward here."
+                    wide
+                  >
+                    <div className="h-full min-h-0 p-4 lg:p-5">{uninstallSecondColumn}</div>
+                  </Panel>
+                </>
+              ) : null}
+
+              {mode === 'cleanup' ? (
+                <>
+                  <Panel title="Cleanup Profiles" subtitle="Choose the cleanup category you want to inspect." scroll>
+                    <ListColumn
+                      entries={cleanupEntries.map((entry) => ({
+                        id: entry.id,
+                        title: entry.title,
+                        subtitle: entry.subtitle,
+                      }))}
+                      activeId={cleanupMode}
+                      onSelect={(entry) => onCleanupModeChange(entry.id as CleanupMode)}
+                    />
+                  </Panel>
+                  <Panel
+                    title={selectedCleanup.title}
+                    subtitle="Profile details stay at the top. Scan review expands underneath in the same panel."
+                    wide
+                  >
+                    <div className="h-full min-h-0 p-4 lg:p-5">{cleanupSecondColumn}</div>
+                  </Panel>
+                </>
+              ) : null}
+
+              {mode === 'startup' ? (
+                <>
+                  <Panel title="Startup Items" subtitle="Startup inventory placeholder until this area gets live system data." scroll>
+                    <ListColumn
+                      entries={startupEntries}
+                      activeId={selectedStartupId}
+                      onSelect={(entry) => setSelectedStartupId(entry.id)}
+                    />
+                  </Panel>
+                  <Panel
+                    title={selectedStartup.title}
+                    subtitle="The detail view uses the same final-column rule as the rest of the app."
+                    wide
+                    scroll
+                  >
+                    <div className="p-4 lg:p-5">
+                      <DetailCard
+                        icon={<ToggleRight className="h-6 w-6" />}
+                        title={selectedStartup.title}
+                        subtitle={selectedStartup.subtitle}
+                      >
+                        <div className="rounded-2xl bg-white px-4 py-4 text-sm leading-7 text-[#747785]">
+                          This area is still placeholder data, but the layout now obeys the same hierarchy cap:
+                          first list column, second detail column, and everything else vertical inside the detail
+                          workspace.
+                        </div>
+                      </DetailCard>
+                    </div>
+                  </Panel>
+                </>
+              ) : null}
+
+              {mode === 'settings' ? (
+                <>
+                  <Panel title="Settings" subtitle="Configuration sections using the same two-column navigation rule." scroll>
+                    <ListColumn
+                      entries={settingsEntries}
+                      activeId={selectedSettingId}
+                      onSelect={(entry) => setSelectedSettingId(entry.id)}
+                    />
+                  </Panel>
+                  <Panel
+                    title={selectedSetting.title}
+                    subtitle="No additional right-side columns are created beyond this workspace."
+                    wide
+                    scroll
+                  >
+                    <div className="p-4 lg:p-5">
+                      <DetailCard
+                        icon={<Settings className="h-6 w-6" />}
+                        title={selectedSetting.title}
+                        subtitle={selectedSetting.subtitle}
+                      >
+                        <div className="rounded-2xl bg-white px-4 py-4 text-sm leading-7 text-[#747785]">
+                          {selectedSetting.id === 'privacy'
+                            ? 'Use this area to explain required macOS permissions and open the corresponding system settings.'
+                            : selectedSetting.id === 'scan-behavior'
+                              ? 'Use this area for scan depth, filters, and future cleanup scope toggles.'
+                              : 'Use this area for confirmation defaults, safe removals, and guardrails.'}
+                        </div>
+                      </DetailCard>
+                    </div>
+                  </Panel>
+                </>
+              ) : null}
+            </div>
+          )}
         </div>
       </div>
 
@@ -856,10 +970,11 @@ export function MainView({
               <div className="flex-1">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#9EA2AE]">Final review</p>
                 <h2 className="mt-2 text-3xl font-semibold tracking-[-0.04em] text-[#111215]">
-                  Remove {confirmState.selectedItems.length} selected {confirmState.selectedItems.length === 1 ? 'item' : 'items'}?
+                  Remove {confirmState.selectedItems.length} selected{' '}
+                  {confirmState.selectedItems.length === 1 ? 'item' : 'items'}?
                 </h2>
                 <p className="mt-3 text-sm leading-7 text-[#747785]">
-                  A remoção continua com modal final. O Finder-like vale para navegar, não para pular confirmação.
+                  Removal always stops here for one final confirmation before deleting anything.
                 </p>
               </div>
             </div>
@@ -880,12 +995,12 @@ export function MainView({
 
             {confirmState.failures.length ? (
               <div className="mt-4 rounded-[24px] border border-rose-200 bg-rose-50 p-4">
-                <p className="text-sm font-semibold text-rose-800">Previous removal failures</p>
-                <div className="mt-3 space-y-2">
+                <p className="text-sm font-semibold text-rose-800">Some items failed previously</p>
+                <div className="mt-3 space-y-2 text-sm text-rose-700">
                   {confirmState.failures.map((failure) => (
-                    <div key={`${failure.path}-${failure.message}`} className="rounded-2xl border border-rose-200 bg-white px-4 py-3">
-                      <p className="text-sm font-semibold text-rose-900">{failure.path}</p>
-                      <p className="mt-1 text-xs text-rose-700">{failure.message}</p>
+                    <div key={`${failure.path}-${failure.message}`} className="rounded-2xl bg-white/80 px-3 py-3">
+                      <p className="break-all font-medium">{failure.path}</p>
+                      <p className="mt-1">{failure.message}</p>
                     </div>
                   ))}
                 </div>
@@ -896,7 +1011,7 @@ export function MainView({
               <button
                 type="button"
                 onClick={onCancelRemoval}
-                className="rounded-2xl border border-black/6 bg-white px-5 py-3 text-sm font-semibold text-[#111215] transition hover:bg-[#F4F4F8]"
+                className="rounded-2xl border border-black/6 bg-white px-4 py-3 text-sm font-semibold text-[#111215] transition hover:bg-[#F4F4F8]"
               >
                 Cancel
               </button>
@@ -905,8 +1020,9 @@ export function MainView({
                 onClick={() => {
                   void onConfirmRemoval();
                 }}
-                className="rounded-2xl bg-[#111215] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#252733]"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#111215] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#252733]"
               >
+                <Trash2 className="h-4 w-4" />
                 Confirm removal
               </button>
             </div>

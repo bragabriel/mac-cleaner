@@ -55,3 +55,19 @@
 
 - O prototipo atual serve como base visual e de fluxo.
 - O `README.md` raiz ainda precisa ser alinhado ao produto real em uma fase seguinte.
+## Feature expansion under discussion
+
+| Status | Feature | Motivation |
+| --- | --- | --- |
+| OPEN | Storage analysis for cleanup | mostrar quais categorias de lixo ocupam mais espaco antes da limpeza |
+| OPEN | Development env cleanup | criar uma frente dedicada para caches e sobras de IDEs e toolchains |
+| OPEN | Homebrew management | listar pacotes instalados via Homebrew com acoes de desinstalar e atualizar |
+| OPEN | Expanded orphan detection | aprofundar deteccao de arquivos e pastas orfas fora do fluxo de uninstall |
+
+## Navigation constraints
+
+| Decisao | Escolha | Motivo |
+| --- | --- | --- |
+| Profundidade da navegacao | no maximo 2 niveis a direita da sidebar | evitar expansao horizontal infinita |
+| Scan e detalhe | resultados e detalhes atualizam a ultima coluna existente | manter o painel principal fixo apos selecionar um item |
+| Viewport operacional | altura da janela permanece fixa; overflow fica dentro da coluna final | preservar uso confortavel em tela de notebook |
