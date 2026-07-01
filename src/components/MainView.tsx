@@ -408,7 +408,7 @@ export function MainView({
 
   const summaryPanel =
     summary && (mode === 'uninstall' || mode === 'cleanup') ? (
-      <section className="min-h-0 rounded-[26px] border border-black/6 bg-white">
+      <section className="flex min-h-0 flex-col overflow-hidden rounded-[26px] border border-black/6 bg-white">
         <div className="border-b border-black/6 px-5 py-4">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
@@ -463,9 +463,9 @@ export function MainView({
           </div>
         </div>
 
-        <div className="grid min-h-0 gap-0 border-t border-black/6 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
-          <div className="min-h-0 border-b border-black/6 xl:border-b-0 xl:border-r xl:border-black/6">
-            <div className="max-h-[420px] overflow-y-auto xl:max-h-none xl:h-full">
+        <div className="grid min-h-0 flex-1 gap-0 border-t border-black/6 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
+          <div className="min-h-0 overflow-hidden border-b border-black/6 xl:border-b-0 xl:border-r xl:border-black/6">
+            <div className="h-full overflow-y-auto">
               {summary.items.length ? (
                 summary.items.map((item) => (
                   <button
@@ -511,7 +511,7 @@ export function MainView({
             </div>
           </div>
 
-          <div className="min-h-0 bg-[#FAFAFC]">
+          <div className="min-h-0 overflow-hidden bg-[#FAFAFC]">
             <div className="h-full overflow-y-auto p-5">
               {selectedResult ? (
                 <div className="space-y-4">
@@ -665,7 +665,7 @@ export function MainView({
         </div>
       </DetailCard>
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="min-h-0 flex-1 overflow-hidden">
         {summaryPanel ? (
           summaryPanel
         ) : (
@@ -723,7 +723,7 @@ export function MainView({
         </div>
       </DetailCard>
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="min-h-0 flex-1 overflow-hidden">
         {summaryPanel ? (
           summaryPanel
         ) : (
