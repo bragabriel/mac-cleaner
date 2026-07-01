@@ -224,12 +224,14 @@ function Panel({
   children,
   wide = false,
   scroll = false,
+  header = true,
 }: {
   title: string;
   subtitle?: string;
   children: ReactNode;
   wide?: boolean;
   scroll?: boolean;
+  header?: boolean;
 }) {
   return (
     <section
@@ -238,10 +240,12 @@ function Panel({
         wide ? 'min-w-0' : '',
       ].join(' ')}
     >
-      <header className="border-b border-black/6 px-5 py-4">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#9EA2AE]">{title}</p>
-        {subtitle ? <p className="mt-2 text-sm leading-6 text-[#747785]">{subtitle}</p> : null}
-      </header>
+      {header ? (
+        <header className="border-b border-black/6 px-5 py-4">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#9EA2AE]">{title}</p>
+          {subtitle ? <p className="mt-2 text-sm leading-6 text-[#747785]">{subtitle}</p> : null}
+        </header>
+      ) : null}
       <div className={scroll ? 'min-h-0 flex-1 overflow-y-auto' : 'min-h-0 flex-1'}>{children}</div>
     </section>
   );
@@ -861,6 +865,7 @@ export function MainView({
                     title={app ? app.name : 'App Workspace'}
                     subtitle="Second and final content column. Deeper steps continue downward here."
                     wide
+                    header={false}
                   >
                     <div className="h-full min-h-0 p-4 lg:p-5">{uninstallSecondColumn}</div>
                   </Panel>
@@ -884,6 +889,7 @@ export function MainView({
                     title={selectedCleanup.title}
                     subtitle="Profile details stay at the top. Scan review expands underneath in the same panel."
                     wide
+                    header={false}
                   >
                     <div className="h-full min-h-0 p-4 lg:p-5">{cleanupSecondColumn}</div>
                   </Panel>
@@ -904,6 +910,7 @@ export function MainView({
                     subtitle="The detail view uses the same final-column rule as the rest of the app."
                     wide
                     scroll
+                    header={false}
                   >
                     <div className="p-4 lg:p-5">
                       <DetailCard
@@ -936,6 +943,7 @@ export function MainView({
                     subtitle="No additional right-side columns are created beyond this workspace."
                     wide
                     scroll
+                    header={false}
                   >
                     <div className="p-4 lg:p-5">
                       <DetailCard
