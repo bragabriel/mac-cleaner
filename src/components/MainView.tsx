@@ -308,7 +308,7 @@ function DetailCard({
 }) {
   return (
     <section className="rounded-[26px] border border-black/6 bg-[#FAFAFC] p-5 lg:p-6">
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+      <div className="flex flex-col gap-4 2xl:flex-row 2xl:items-start 2xl:justify-between">
         <div className="flex min-w-0 items-start gap-4">
           <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-3xl bg-[#F1EEFF] text-[#7263FF]">
             {icon}
@@ -644,47 +644,42 @@ export function MainView({
         subtitle="App details, storage footprint, and related actions stay at the top of the final column."
         rightSlot={<InfoChip label="App Size" value={formatBytes(app.sizeBytes)} />}
       >
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1.3fr)_minmax(240px,0.7fr)]">
+        <div className="grid items-start gap-4 2xl:grid-cols-[minmax(0,1.3fr)_minmax(220px,0.7fr)]">
           <div className="rounded-2xl bg-white px-4 py-4">
             <p className="text-[11px] uppercase tracking-[0.18em] text-[#9EA2AE]">Installed path</p>
             <p className="mt-2 break-all text-sm text-[#111215]">{app.appPath}</p>
             <p className="mt-2 text-sm text-[#747785]">{app.bundleId || 'Bundle ID unavailable'}</p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+          <div className="grid content-start items-start gap-3 2xl:grid-cols-1">
             <button
               type="button"
               onClick={() => {
                 void onRunScan();
               }}
               disabled={scanStatus.scanning || scanStatus.removing}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#111215] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#252733] disabled:cursor-not-allowed disabled:opacity-35"
+              className="inline-flex h-11 w-full min-w-0 items-center justify-center gap-2 rounded-2xl bg-[#111215] px-3 py-2.5 text-xs font-semibold leading-none text-white transition hover:bg-[#252733] disabled:cursor-not-allowed disabled:opacity-35 sm:px-4 sm:text-sm"
             >
-              {scanStatus.scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <AppWindowMac className="h-4 w-4" />}
-              {scanStatus.scanning ? 'Scanning...' : 'Scan related files'}
+              {scanStatus.scanning ? (
+                <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+              ) : (
+                <AppWindowMac className="h-4 w-4 shrink-0" />
+              )}
+              <span className="min-w-0 truncate">{scanStatus.scanning ? 'Scanning...' : 'Scan related files'}</span>
             </button>
             <button
               type="button"
               onClick={() => {
                 void onOpenPath(app.appPath);
               }}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-black/6 bg-white px-4 py-3 text-sm font-semibold text-[#111215] transition hover:bg-[#F4F4F8]"
+              className="inline-flex h-11 w-full min-w-0 items-center justify-center gap-2 rounded-2xl border border-black/6 bg-white px-3 py-2.5 text-xs font-semibold leading-none text-[#111215] transition hover:bg-[#F4F4F8] sm:px-4 sm:text-sm"
             >
-              <ExternalLink className="h-4 w-4" />
-              Open in Finder
+              <ExternalLink className="h-4 w-4 shrink-0" />
+              <span className="min-w-0 truncate">Open in Finder</span>
             </button>
           </div>
         </div>
       </DetailCard>
 
-      <div className="min-h-0 flex-1 overflow-hidden">
-        {summaryPanel ? (
-          summaryPanel
-        ) : (
-          <div className="rounded-[26px] border border-dashed border-black/6 bg-white px-5 py-6 text-sm leading-7 text-[#747785]">
-            Run a scan and the results will appear below this detail card inside the same final column.
-          </div>
-        )}
-      </div>
     </div>
   ) : (
     <div className="rounded-[26px] border border-dashed border-black/6 bg-white px-5 py-6 text-sm leading-7 text-[#747785]">
@@ -695,10 +690,20 @@ export function MainView({
   const uninstallThirdColumn = app ? (
     summary ? (
       <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-[26px] border border-black/6 bg-white">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-black/6 px-4 py-4 lg:px-5">
+        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-black/6 px-4 py-4 lg:px-5">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">Scan results</p>
                   <p className="mt-1 text-sm text-[#747785]">{summaryItems.length} leftovers found</p>
+          </div>
+          <div className="flex flex-1 flex-wrap items-center justify-start gap-6 sm:justify-center">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">Selected</p>
+              <p className="mt-1 text-sm font-semibold text-[#111215]">{selectedCount} of {summaryItems.length}</p>
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">Selected size</p>
+              <p className="mt-1 text-sm font-semibold text-[#111215]">{formatBytes(selectedBytes)}</p>
+            </div>
           </div>
           <button
             type="button"
