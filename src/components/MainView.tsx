@@ -27,6 +27,10 @@ import type {
   ScanItem,
   ScanStatus,
   ScanSummary,
+  StartupCategory,
+  StartupCategoryState,
+  StartupItem,
+  StartupSnapshot,
 } from '../types';
 
 interface MainViewProps {
@@ -41,6 +45,11 @@ interface MainViewProps {
   permissionSnapshot: PermissionSnapshot | null;
   permissionCheckLoading: boolean;
   permissionCheckError: string | null;
+  startupSnapshot: StartupSnapshot | null;
+  startupLoading: boolean;
+  startupError: string | null;
+  startupItemDetail: StartupItem | null;
+  startupItemDetailLoading: boolean;
   onModeChange: (mode: ProductMode) => void;
   onCleanupModeChange: (mode: CleanupMode) => void;
   onSelectApp: (app: AppItem) => void;
@@ -50,6 +59,8 @@ interface MainViewProps {
   onToggleAll: () => void;
   onOpenSystemSettings: (target: PermissionSettingTarget) => void | Promise<void>;
   onRefreshPermissionSnapshot: () => void | Promise<void>;
+  onRefreshStartupSnapshot: () => void | Promise<void>;
+  onSelectStartupItem: (itemId: string | null) => void | Promise<void>;
   onCopyPath: (targetPath: string) => void | Promise<void>;
   onRevealPath: (targetPath: string) => void | Promise<void>;
   onOpenPath: (targetPath: string) => void | Promise<void>;
@@ -145,21 +156,35 @@ const homeEntries: Array<{
   },
 ];
 
-const startupEntries = [
+const startupEntries: Array<{
+  id: StartupCategory;
+  title: string;
+  subtitle: string;
+}> = [
   {
     id: 'login-items',
     title: 'Login Items',
     subtitle: 'Apps configured to launch when the user session starts.',
   },
   {
-    id: 'launch-agents',
-    title: 'Launch Agents',
+    id: 'launch-agents-user',
+    title: 'Launch Agents (User)',
     subtitle: 'Per-user launchd services and helper jobs.',
+  },
+  {
+    id: 'launch-agents-system',
+    title: 'Launch Agents (System)',
+    subtitle: 'System-wide GUI agents and helper jobs.',
   },
   {
     id: 'launch-daemons',
     title: 'Launch Daemons',
     subtitle: 'System-wide launchd services and background processes.',
+  },
+  {
+    id: 'services',
+    title: 'Brew Services',
+    subtitle: 'Homebrew-managed services that will join this inventory.',
   },
 ];
 
@@ -259,6 +284,36 @@ function permissionStatusLabel(status: PermissionStatus) {
       return 'Needs manual review';
     default:
       return 'Unknown';
+  }
+}
+
+function startupStateTone(state: StartupCategoryState) {
+  switch (state) {
+    case 'available':
+      return 'border-emerald-200 bg-emerald-50 text-emerald-700';
+    case 'error':
+      return 'border-rose-200 bg-rose-50 text-rose-700';
+    case 'permission-needed':
+      return 'border-amber-200 bg-amber-50 text-amber-700';
+    case 'unsupported':
+      return 'border-slate-200 bg-slate-100 text-slate-700';
+    default:
+      return 'border-slate-200 bg-slate-50 text-slate-700';
+  }
+}
+
+function startupStateLabel(state: StartupCategoryState) {
+  switch (state) {
+    case 'available':
+      return 'Available';
+    case 'error':
+      return 'Error';
+    case 'permission-needed':
+      return 'Permission needed';
+    case 'unsupported':
+      return 'Unsupported';
+    default:
+      return 'Empty';
   }
 }
 
@@ -442,6 +497,11 @@ export function MainView({
   permissionSnapshot,
   permissionCheckLoading,
   permissionCheckError,
+  startupSnapshot,
+  startupLoading,
+  startupError,
+  startupItemDetail,
+  startupItemDetailLoading,
   onModeChange,
   onCleanupModeChange,
   onSelectApp,
@@ -451,6 +511,8 @@ export function MainView({
   onToggleAll,
   onOpenSystemSettings,
   onRefreshPermissionSnapshot,
+  onRefreshStartupSnapshot,
+  onSelectStartupItem,
   onCopyPath,
   onRevealPath,
   onOpenPath,
@@ -460,7 +522,8 @@ export function MainView({
   onCancelRemoval,
 }: MainViewProps) {
   const [selectedHomeId, setSelectedHomeId] = useState<string | null>(null);
-  const [selectedStartupId, setSelectedStartupId] = useState<string | null>(startupEntries[0]?.id ?? null);
+  const [selectedStartupId, setSelectedStartupId] = useState<StartupCategory | null>(startupEntries[0]?.id ?? null);
+  const [selectedStartupItemId, setSelectedStartupItemId] = useState<string | null>(null);
   const [selectedSettingId, setSelectedSettingId] = useState<string | null>(settingsEntries[0]?.id ?? null);
   const [selectedResultId, setSelectedResultId] = useState<string | null>(null);
 
@@ -483,6 +546,20 @@ export function MainView({
   }));
   const selectedSetting = settingsWithStatus.find((entry) => entry.id === selectedSettingId) ?? settingsWithStatus[0];
   const summaryItems = summary?.items ?? [];
+  const startupCategories = startupEntries.map((entry) => {
+    const snapshotCategory = startupSnapshot?.categories.find((category) => category.id === entry.id);
+    return {
+      ...entry,
+      state: snapshotCategory?.state ?? 'empty',
+      detail: snapshotCategory?.detail ?? entry.subtitle,
+      count: snapshotCategory?.count ?? 0,
+    };
+  });
+  const filteredStartupItems = (startupSnapshot?.items ?? []).filter((item) => item.category === selectedStartup.id);
+  const selectedStartupItem =
+    filteredStartupItems.find((item) => item.id === selectedStartupItemId) ??
+    filteredStartupItems[0] ??
+    null;
   const scannedRoots = summary?.scannedRoots ?? [];
   const inaccessibleRoots = summary?.inaccessibleRoots ?? [];
   const selectedResult = summaryItems.find((item) => item.id === selectedResultId) ?? summaryItems[0] ?? null;
@@ -491,6 +568,12 @@ export function MainView({
     summary?.items.filter((item) => item.selected).reduce((total, item) => total + item.sizeBytes, 0) ?? 0;
   const progressValue = scanStatus.scanning || scanStatus.removing ? scanStatus.progress : summary ? 100 : 0;
   const canRunScan = mode === 'uninstall' ? Boolean(app) : mode === 'cleanup';
+
+  useEffect(() => {
+    const nextSelectedItemId = filteredStartupItems[0]?.id ?? null;
+    setSelectedStartupItemId(nextSelectedItemId);
+    void onSelectStartupItem(nextSelectedItemId);
+  }, [selectedStartup.id, startupSnapshot?.checkedAt]);
 
   const breadcrumbs = useMemo(() => {
     const path = ['Mac Cleaner'];
@@ -521,12 +604,238 @@ export function MainView({
 
     if (mode === 'startup') {
       path.push('Startup', selectedStartup.title);
+      if (selectedStartupItem) {
+        path.push(selectedStartupItem.displayName);
+      }
       return path;
     }
 
     path.push('Settings', selectedSetting.title);
     return path;
-  }, [app, mode, selectedCleanup.title, selectedResult, selectedSetting.title, selectedStartup.title]);
+  }, [app, mode, selectedCleanup.title, selectedResult, selectedSetting.title, selectedStartup.title, selectedStartupItem]);
+
+  const startupListColumn = (
+    <div className="min-h-0 flex-1 overflow-y-auto">
+      {startupLoading ? (
+        <div className="px-5 py-8 text-sm text-[#747785]">Loading startup inventory...</div>
+      ) : filteredStartupItems.length ? (
+        filteredStartupItems.map((item) => {
+          const isActive = selectedStartupItem?.id === item.id;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => {
+                setSelectedStartupItemId(item.id);
+                void onSelectStartupItem(item.id);
+              }}
+              className={cn(
+                'flex w-full items-start justify-between gap-4 border-b border-black/6 px-5 py-4 text-left transition',
+                isActive ? 'bg-[#F4F1FF]' : 'bg-white hover:bg-[#FAFAFC]',
+              )}
+            >
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-[#111215]">{item.displayName}</p>
+                <p className="mt-1 truncate text-xs text-[#747785]">{item.label}</p>
+              </div>
+              <div className="shrink-0 text-right">
+                <span
+                  className={cn(
+                    'inline-flex rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em]',
+                    item.loaded ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-slate-50 text-slate-700',
+                  )}
+                >
+                  {item.loaded ? 'Loaded' : item.enabled === false ? 'Disabled' : 'Idle'}
+                </span>
+                <p className="mt-2 text-[11px] text-[#9EA2AE]">{item.scope === 'system' ? 'System' : 'User'}</p>
+              </div>
+            </button>
+          );
+        })
+      ) : (
+        <div className="px-5 py-8 text-sm text-[#747785]">
+          {selectedStartup.id === 'login-items'
+            ? 'Review Login Items in macOS System Settings to inspect this category.'
+            : startupLoading
+              ? 'Loading startup items...'
+              : 'No startup items are available in this category right now.'}
+        </div>
+      )}
+    </div>
+  );
+
+  const startupDetail = startupItemDetail ?? selectedStartupItem;
+
+  const startupDetailColumn = (
+    <div className="space-y-4">
+      {startupError ? (
+        <div className="rounded-[24px] border border-rose-200 bg-rose-50 px-4 py-4 text-sm leading-7 text-rose-800">
+          {startupError}
+        </div>
+      ) : null}
+
+      {selectedStartup.id === 'login-items' ? (
+        <DetailCard
+          icon={<ShieldAlert className="h-6 w-6" />}
+          title="Login Items require manual review"
+          subtitle="macOS does not provide a stable third-party API for a full Login Items inventory."
+        >
+          <div className="space-y-4">
+            <div className="rounded-[24px] border border-black/6 bg-white px-4 py-4 text-sm leading-7 text-[#747785]">
+              Open the Login Items section in System Settings to verify which apps still relaunch after sign-in and
+              which background items can recreate support files after cleanup.
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <button
+                type="button"
+                onClick={() => {
+                  void onOpenSystemSettings('login-items');
+                }}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#111215] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#252733]"
+              >
+                <ExternalLink className="h-4 w-4" />
+                Open Login Items
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  void onRefreshStartupSnapshot();
+                }}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-black/6 bg-white px-4 py-3 text-sm font-semibold text-[#111215] transition hover:bg-[#F4F4F8]"
+              >
+                {startupLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                Retry inventory
+              </button>
+            </div>
+          </div>
+        </DetailCard>
+      ) : startupItemDetailLoading ? (
+        <div className="rounded-[24px] border border-black/6 bg-white px-4 py-6 text-sm text-[#747785]">
+          <div className="inline-flex items-center gap-2">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Loading startup item details...
+          </div>
+        </div>
+      ) : startupDetail ? (
+        <DetailCard
+          icon={startupDetail.loaded ? <CheckCircle2 className="h-6 w-6" /> : <ToggleRight className="h-6 w-6" />}
+          title={startupDetail.displayName}
+          subtitle={startupDetail.description}
+          rightSlot={
+            <div className="flex flex-wrap justify-end gap-2">
+              <span
+                className={cn(
+                  'rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]',
+                  startupDetail.loaded ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-slate-50 text-slate-700',
+                )}
+              >
+                {startupDetail.loaded ? 'Loaded' : startupDetail.enabled === false ? 'Disabled' : 'Not loaded'}
+              </span>
+              <span
+                className={cn(
+                  'rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]',
+                  startupDetail.requiresAdmin ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-slate-200 bg-slate-50 text-slate-700',
+                )}
+              >
+                {startupDetail.requiresAdmin ? 'Admin' : 'User'}
+              </span>
+            </div>
+          }
+        >
+          <div className="grid gap-4 xl:grid-cols-2">
+            <div className="rounded-[24px] border border-black/6 bg-white px-4 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">Launchd label</p>
+              <p className="mt-3 break-all text-sm leading-7 text-[#111215]">{startupDetail.label}</p>
+            </div>
+            <div className="rounded-[24px] border border-black/6 bg-white px-4 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">Executable</p>
+              <p className="mt-3 break-all text-sm leading-7 text-[#111215]">
+                {startupDetail.executablePath ?? 'No executable path was derived from this plist.'}
+              </p>
+            </div>
+            <div className="rounded-[24px] border border-black/6 bg-white px-4 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">Plist path</p>
+              <p className="mt-3 break-all text-sm leading-7 text-[#111215]">
+                {startupDetail.plistPath ?? 'No plist file is attached to this item.'}
+              </p>
+            </div>
+            <div className="rounded-[24px] border border-black/6 bg-white px-4 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">Launch behavior</p>
+              <p className="mt-3 text-sm leading-7 text-[#111215]">
+                Run at load: {startupDetail.runAtLoad === null ? 'Unknown' : startupDetail.runAtLoad ? 'Yes' : 'No'}
+                <br />
+                Keep alive: {startupDetail.keepAlive === null ? 'Unknown' : startupDetail.keepAlive ? 'Yes' : 'No'}
+                <br />
+                Last exit status: {startupDetail.lastExitStatus ?? 'Unavailable'}
+              </p>
+            </div>
+          </div>
+
+          {startupDetail.programArguments.length ? (
+            <div className="rounded-[24px] border border-black/6 bg-[#FAFAFC] px-4 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">Program arguments</p>
+              <div className="mt-3 space-y-2">
+                {startupDetail.programArguments.map((argument) => (
+                  <div key={argument} className="rounded-2xl border border-black/6 bg-white px-3 py-2 text-sm text-[#111215]">
+                    {argument}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {startupDetail.errorMessage ? (
+            <div className="rounded-[24px] border border-amber-200 bg-amber-50 px-4 py-4 text-sm leading-7 text-amber-800">
+              {startupDetail.errorMessage}
+            </div>
+          ) : null}
+
+          <div className="flex flex-col gap-3 sm:flex-row">
+            {startupDetail.plistPath ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void onRevealPath(startupDetail.plistPath!);
+                  }}
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#111215] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#252733]"
+                >
+                  <FolderOpen className="h-4 w-4" />
+                  Reveal plist
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void onCopyPath(startupDetail.plistPath!);
+                  }}
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl border border-black/6 bg-white px-4 py-3 text-sm font-semibold text-[#111215] transition hover:bg-[#F4F4F8]"
+                >
+                  <Copy className="h-4 w-4" />
+                  Copy plist path
+                </button>
+              </>
+            ) : null}
+            {startupDetail.executablePath ? (
+              <button
+                type="button"
+                onClick={() => {
+                  void onOpenPath(startupDetail.executablePath!);
+                }}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-black/6 bg-white px-4 py-3 text-sm font-semibold text-[#111215] transition hover:bg-[#F4F4F8]"
+              >
+                <ExternalLink className="h-4 w-4" />
+                Open executable
+              </button>
+            ) : null}
+          </div>
+        </DetailCard>
+      ) : (
+        <div className="rounded-[24px] border border-black/6 bg-white px-4 py-6 text-sm leading-7 text-[#747785]">
+          Select a startup item to inspect its launch metadata, executable path, and launchctl state.
+        </div>
+      )}
+    </div>
+  );
 
   const uninstallSecondColumn = app ? (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
@@ -890,33 +1199,41 @@ export function MainView({
 
               {mode === 'startup' ? (
                 <>
-                  <Panel title="Startup Items" subtitle="Startup inventory placeholder until this area gets live system data." scroll>
+                  <Panel title="Startup Categories" subtitle="Live launchd inventory grouped by startup surface." scroll>
                     <ListColumn
-                      entries={startupEntries}
+                      entries={startupCategories}
                       activeId={selectedStartupId}
                       onSelect={(entry) => setSelectedStartupId(entry.id)}
+                      rightMeta={(entry) => (
+                        <div className="flex flex-col items-end gap-1">
+                          <span
+                            className={cn(
+                              'rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em]',
+                              startupStateTone(entry.state),
+                            )}
+                          >
+                            {startupStateLabel(entry.state)}
+                          </span>
+                          <span>{entry.count}</span>
+                        </div>
+                      )}
                     />
                   </Panel>
                   <Panel
                     title={selectedStartup.title}
-                    subtitle="The detail view uses the same final-column rule as the rest of the app."
+                    subtitle={startupCategories.find((entry) => entry.id === selectedStartup.id)?.detail ?? selectedStartup.subtitle}
+                    scroll
+                  >
+                    {startupListColumn}
+                  </Panel>
+                  <Panel
+                    title={startupDetail ? startupDetail.displayName : selectedStartup.title}
+                    subtitle="Startup details stay in the final workspace column."
                     wide
                     scroll
                     header={false}
                   >
-                    <div className="p-4 lg:p-5">
-                      <DetailCard
-                        icon={<ToggleRight className="h-6 w-6" />}
-                        title={selectedStartup.title}
-                        subtitle={selectedStartup.subtitle}
-                      >
-                        <div className="rounded-2xl bg-white px-4 py-4 text-sm leading-7 text-[#747785]">
-                          This area is still placeholder data, but the layout now obeys the same hierarchy cap:
-                          first list column, second detail column, and everything else vertical inside the detail
-                          workspace.
-                        </div>
-                      </DetailCard>
-                    </div>
+                    <div className="p-4 lg:p-5">{startupDetailColumn}</div>
                   </Panel>
                 </>
               ) : null}

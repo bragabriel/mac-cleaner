@@ -1,12 +1,21 @@
 import {useEffect, useMemo, useRef, useState} from 'react';
 import {MainView} from './components/MainView';
 import {Sidebar} from './components/Sidebar';
-import {MOCK_APPS, MOCK_ORPHAN_SUMMARY, MOCK_PERMISSION_SNAPSHOT, MOCK_SYSTEM_SUMMARY, MOCK_UNINSTALL_SUMMARY} from './data';
+import {
+  MOCK_APPS,
+  MOCK_ORPHAN_SUMMARY,
+  MOCK_PERMISSION_SNAPSHOT,
+  MOCK_STARTUP_SNAPSHOT,
+  MOCK_SYSTEM_SUMMARY,
+  MOCK_UNINSTALL_SUMMARY,
+} from './data';
 import type {
   AppItem,
   CleanupMode,
   PermissionSettingTarget,
   PermissionSnapshot,
+  StartupItem,
+  StartupSnapshot,
   ProductMode,
   RemovalFailure,
   ScanItem,
@@ -43,6 +52,11 @@ export default function App() {
   const [permissionSnapshot, setPermissionSnapshot] = useState<PermissionSnapshot | null>(null);
   const [permissionCheckLoading, setPermissionCheckLoading] = useState(false);
   const [permissionCheckError, setPermissionCheckError] = useState<string | null>(null);
+  const [startupSnapshot, setStartupSnapshot] = useState<StartupSnapshot | null>(null);
+  const [startupLoading, setStartupLoading] = useState(false);
+  const [startupError, setStartupError] = useState<string | null>(null);
+  const [startupItemDetail, setStartupItemDetail] = useState<StartupItem | null>(null);
+  const [startupItemDetailLoading, setStartupItemDetailLoading] = useState(false);
   const progressIntervalRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -111,6 +125,55 @@ export default function App() {
     }
 
     void refreshPermissionSnapshot();
+  }, [mode]);
+
+  const refreshStartupSnapshot = async () => {
+    setStartupLoading(true);
+    setStartupError(null);
+
+    try {
+      const nextSnapshot = window.macCleaner?.listStartupItems
+        ? await window.macCleaner.listStartupItems()
+        : MOCK_STARTUP_SNAPSHOT;
+      setStartupSnapshot(nextSnapshot);
+      setStartupItemDetail(null);
+    } catch (error) {
+      setStartupSnapshot(MOCK_STARTUP_SNAPSHOT);
+      setStartupError(error instanceof Error ? error.message : 'Startup scan failed.');
+      setStartupItemDetail(null);
+    } finally {
+      setStartupLoading(false);
+    }
+  };
+
+  const loadStartupItemDetail = async (itemId: string | null) => {
+    if (!itemId) {
+      setStartupItemDetail(null);
+      return;
+    }
+
+    setStartupError(null);
+    setStartupItemDetailLoading(true);
+
+    try {
+      const nextDetail = window.macCleaner?.getStartupItemDetails
+        ? await window.macCleaner.getStartupItemDetails(itemId)
+        : MOCK_STARTUP_SNAPSHOT.items.find((item) => item.id === itemId) ?? null;
+      setStartupItemDetail(nextDetail);
+    } catch (error) {
+      setStartupItemDetail(null);
+      setStartupError(error instanceof Error ? error.message : 'Startup detail lookup failed.');
+    } finally {
+      setStartupItemDetailLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (mode !== 'startup') {
+      return;
+    }
+
+    void refreshStartupSnapshot();
   }, [mode]);
 
   const filteredApps = useMemo(() => {
@@ -308,8 +371,15 @@ export default function App() {
         permissionSnapshot={permissionSnapshot}
         permissionCheckLoading={permissionCheckLoading}
         permissionCheckError={permissionCheckError}
+        startupSnapshot={startupSnapshot}
+        startupLoading={startupLoading}
+        startupError={startupError}
+        startupItemDetail={startupItemDetail}
+        startupItemDetailLoading={startupItemDetailLoading}
         onOpenSystemSettings={(target: PermissionSettingTarget) => window.macCleaner?.openSystemSettings?.(target)}
         onRefreshPermissionSnapshot={refreshPermissionSnapshot}
+        onRefreshStartupSnapshot={refreshStartupSnapshot}
+        onSelectStartupItem={loadStartupItemDetail}
         onCopyPath={handleCopyPath}
         onRevealPath={handleRevealPath}
         onOpenPath={handleOpenPath}

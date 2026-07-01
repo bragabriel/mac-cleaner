@@ -91,6 +91,56 @@ export interface PermissionSnapshot {
   permissions: PermissionSnapshotItem[];
 }
 
+export type StartupCategory =
+  | 'login-items'
+  | 'launch-agents-user'
+  | 'launch-agents-system'
+  | 'launch-daemons'
+  | 'services';
+
+export type StartupCategoryState = 'available' | 'empty' | 'error' | 'permission-needed' | 'unsupported';
+
+export interface StartupCategorySummary {
+  id: StartupCategory;
+  title: string;
+  subtitle: string;
+  state: StartupCategoryState;
+  detail: string;
+  count: number;
+}
+
+export interface StartupItem {
+  id: string;
+  category: StartupCategory;
+  label: string;
+  displayName: string;
+  description: string;
+  plistPath: string | null;
+  executablePath: string | null;
+  program: string | null;
+  programArguments: string[];
+  runAtLoad: boolean | null;
+  keepAlive: boolean | null;
+  disabledInPlist: boolean | null;
+  enabled: boolean | null;
+  loaded: boolean | null;
+  pid: number | null;
+  lastExitStatus: number | null;
+  scope: 'user' | 'system' | 'unknown';
+  requiresAdmin: boolean;
+  supportsToggle: boolean;
+  source: 'plist' | 'service' | 'login-item';
+  domain: string | null;
+  errorMessage: string | null;
+}
+
+export interface StartupSnapshot {
+  checkedAt: string;
+  categories: StartupCategorySummary[];
+  items: StartupItem[];
+  globalError: string | null;
+}
+
 export interface DesktopApi {
   listApps?: () => Promise<AppItem[]>;
   scanApp?: (app: AppItem) => Promise<ScanSummary>;
@@ -101,6 +151,8 @@ export interface DesktopApi {
   openPath?: (targetPath: string) => Promise<void>;
   openSystemSettings?: (target: PermissionSettingTarget) => Promise<void>;
   getPermissionSnapshot?: () => Promise<PermissionSnapshot>;
+  listStartupItems?: () => Promise<StartupSnapshot>;
+  getStartupItemDetails?: (itemId: string) => Promise<StartupItem | null>;
 }
 
 declare global {

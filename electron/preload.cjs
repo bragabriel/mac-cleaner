@@ -10,4 +10,6 @@ contextBridge.exposeInMainWorld('macCleaner', {
   openPath: (targetPath) => ipcRenderer.invoke('item:open', targetPath),
   openSystemSettings: (target) => ipcRenderer.invoke('permissions:open-settings', target),
   getPermissionSnapshot: () => ipcRenderer.invoke('permissions:get-snapshot'),
+  listStartupItems: () => ipcRenderer.invoke('startup:list'),
+  getStartupItemDetails: (itemId) => ipcRenderer.invoke('startup:get-item-details', itemId),
 });

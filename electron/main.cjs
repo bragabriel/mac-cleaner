@@ -2,6 +2,7 @@ const path = require('node:path');
 const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const { listInstalledApps, removeItems, scanAppResidues, scanOrphanResidues, scanSystemJunk } = require('./service.cjs');
 const { getPermissionSnapshot, openSystemSettingsTarget } = require('./permissions/checks.cjs');
+const { getStartupItemDetails, getStartupSnapshot } = require('./startup/discovery.cjs');
 
 const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
 
@@ -42,6 +43,8 @@ app.whenReady().then(() => {
   ipcMain.handle('item:open', async (_event, targetPath) => shell.openPath(targetPath));
   ipcMain.handle('permissions:get-snapshot', async () => getPermissionSnapshot());
   ipcMain.handle('permissions:open-settings', async (_event, target) => openSystemSettingsTarget(target));
+  ipcMain.handle('startup:list', async () => getStartupSnapshot());
+  ipcMain.handle('startup:get-item-details', async (_event, itemId) => getStartupItemDetails(itemId));
 
   createWindow();
 

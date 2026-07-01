@@ -31,4 +31,19 @@ describe('App navigation', () => {
     expect(await screen.findByText('Open Full Disk Access')).toBeInTheDocument();
     expect(screen.getByText('Retry check')).toBeInTheDocument();
   });
+
+  it('opens Startup with real inventory scaffolding instead of placeholder copy', async () => {
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    const startupTrigger = screen.getAllByText('Startup Items')[0]?.closest('button');
+    expect(startupTrigger).not.toBeNull();
+
+    await user.click(startupTrigger!);
+
+    expect((await screen.findAllByText('Launch Agents (User)')).length).toBeGreaterThan(0);
+    await user.click(screen.getAllByText('Launch Agents (User)')[0]!);
+    expect(screen.getAllByText('Reveal plist').length).toBeGreaterThan(0);
+  });
 });
