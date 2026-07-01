@@ -1,6 +1,7 @@
 const fs = require('node:fs/promises');
 const os = require('node:os');
 const path = require('node:path');
+const { listBrewServices } = require('../homebrew/services.cjs');
 const { buildStartupErrorItem, readStartupPlist } = require('./plist.cjs');
 const { enrichWithLaunchctlState, readLaunchctlStateMaps } = require('./launchctl.cjs');
 
@@ -86,7 +87,7 @@ async function readPlistDirectory(source) {
   }
 }
 
-function buildCategorySummary(id, items, directoryError) {
+function buildCategorySummary(id, items, directoryError, options = {}) {
   const config = STARTUP_CATEGORY_CONFIG.find((entry) => entry.id === id);
 
   if (id === 'login-items') {
@@ -99,10 +100,37 @@ function buildCategorySummary(id, items, directoryError) {
   }
 
   if (id === 'services') {
+    if (!options.brewInstalled) {
+      return {
+        ...config,
+        state: 'empty',
+        detail: 'Homebrew is not installed on this Mac, so no brew services are available.',
+        count: 0,
+      };
+    }
+
+    if (options.brewError) {
+      return {
+        ...config,
+        state: 'error',
+        detail: options.brewError,
+        count: 0,
+      };
+    }
+
+    if (items.length) {
+      return {
+        ...config,
+        state: 'available',
+        detail: `${items.length} brew services were found without depending on the Updates view.`,
+        count: items.length,
+      };
+    }
+
     return {
       ...config,
-      state: 'unsupported',
-      detail: 'Homebrew services will be connected into Startup in a later milestone.',
+      state: 'empty',
+      detail: 'Homebrew is installed, but no brew services are currently registered.',
       count: 0,
     };
   }
@@ -139,16 +167,25 @@ function buildCategorySummary(id, items, directoryError) {
 
 async function getStartupSnapshot() {
   const launchctlState = await readLaunchctlStateMaps();
-  const sourceResults = await Promise.all(PLIST_SOURCES.map((source) => readPlistDirectory(source)));
+  const [sourceResults, brewServices] = await Promise.all([
+    Promise.all(PLIST_SOURCES.map((source) => readPlistDirectory(source))),
+    listBrewServices(),
+  ]);
 
-  const items = sourceResults.flatMap((result) => result.items).map((item) => enrichWithLaunchctlState(item, launchctlState));
+  const items = sourceResults
+    .flatMap((result) => result.items)
+    .map((item) => enrichWithLaunchctlState(item, launchctlState))
+    .concat(brewServices.items);
 
   const categories = STARTUP_CATEGORY_CONFIG.map((category) => {
     const sourceIndex = PLIST_SOURCES.findIndex((source) => source.category === category.id);
     const sourceError = sourceIndex >= 0 ? sourceResults[sourceIndex].error : null;
     const categoryItems = items.filter((item) => item.category === category.id);
 
-    return buildCategorySummary(category.id, categoryItems, sourceError);
+    return buildCategorySummary(category.id, categoryItems, sourceError, {
+      brewInstalled: brewServices.installed,
+      brewError: brewServices.error,
+    });
   });
 
   const failingCategories = categories.filter((category) => category.state === 'error');

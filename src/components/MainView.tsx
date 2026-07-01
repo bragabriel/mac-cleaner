@@ -188,7 +188,7 @@ const startupEntries: Array<{
   {
     id: 'services',
     title: 'Brew Services',
-    subtitle: 'Homebrew-managed services that will join this inventory.',
+    subtitle: 'Homebrew-managed services discovered from brew services list.',
   },
 ];
 
