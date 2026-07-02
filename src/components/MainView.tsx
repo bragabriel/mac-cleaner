@@ -1174,7 +1174,7 @@ export function MainView({
               <div className="mx-auto max-w-6xl">
                 <div className="rounded-[28px] border border-black/6 bg-[#FAFAFC] p-6 lg:p-8">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.26em] text-[#9EA2AE]">Home</p>
-                  <h2 className="mt-3 text-3xl font-semibold tracking-[-0.04em] text-[#111215]">
+                  <h2 className="mt-3 text-2xl font-semibold tracking-[-0.04em] text-[#111215] xl:text-3xl">
                     Choose what you want to clean or manage.
                   </h2>
                   <p className="mt-3 max-w-2xl text-sm leading-7 text-[#747785]">
@@ -1183,7 +1183,7 @@ export function MainView({
                   </p>
                 </div>
 
-                <div className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                <div className="mt-5 grid gap-4 md:grid-cols-2 xl:mt-6 xl:grid-cols-3 xl:gap-5">
                   {homeEntries.map((entry) => {
                     const Icon = entry.icon;
 
@@ -1198,14 +1198,14 @@ export function MainView({
                           }
                           onModeChange(entry.mode);
                         }}
-                        className="group rounded-[28px] border border-black/6 bg-white p-6 text-left transition hover:-translate-y-0.5 hover:border-black/12 hover:shadow-[0_24px_60px_rgba(17,18,21,0.08)]"
+                        className="group rounded-[24px] border border-black/6 bg-white p-5 text-left transition hover:-translate-y-0.5 hover:border-black/12 hover:shadow-[0_24px_60px_rgba(17,18,21,0.08)] xl:rounded-[28px] xl:p-6"
                       >
-                        <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-[#F1EEFF] text-[#7263FF]">
-                          <Icon className="h-7 w-7" />
+                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F1EEFF] text-[#7263FF] xl:h-14 xl:w-14 xl:rounded-3xl">
+                          <Icon className="h-6 w-6 xl:h-7 xl:w-7" />
                         </div>
-                        <h3 className="mt-5 text-2xl font-semibold tracking-[-0.04em] text-[#111215]">{entry.title}</h3>
-                        <p className="mt-3 text-sm leading-7 text-[#747785]">{entry.subtitle}</p>
-                        <p className="mt-5 text-sm font-semibold text-[#111215]">Open section</p>
+                        <h3 className="mt-4 text-xl font-semibold tracking-[-0.04em] text-[#111215] xl:mt-5 xl:text-2xl">{entry.title}</h3>
+                        <p className="mt-2 text-sm leading-6 text-[#747785] xl:mt-3 xl:leading-7">{entry.subtitle}</p>
+                        <p className="mt-4 text-sm font-semibold text-[#111215] xl:mt-5">Open section</p>
                       </button>
                     );
                   })}
