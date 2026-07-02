@@ -1196,7 +1196,7 @@ export function MainView({
                   </p>
                 </div>
 
-                <div className="mx-auto mt-5 grid max-w-4xl gap-4 md:grid-cols-2 xl:mt-6 xl:max-w-none xl:grid-cols-3 xl:gap-5">
+                <div className="mt-5 grid gap-3 md:grid-cols-2 lg:grid-cols-3 xl:mt-6 xl:gap-5">
                   {homeEntries.map((entry) => {
                     const Icon = entry.icon;
 
@@ -1211,14 +1211,14 @@ export function MainView({
                           }
                           onModeChange(entry.mode);
                         }}
-                        className="group rounded-[24px] border border-black/6 bg-white p-5 text-left transition hover:-translate-y-0.5 hover:border-black/12 hover:shadow-[0_24px_60px_rgba(17,18,21,0.08)] xl:rounded-[28px] xl:p-6"
+                        className="group rounded-[22px] border border-black/6 bg-white p-4 text-left transition hover:-translate-y-0.5 hover:border-black/12 hover:shadow-[0_24px_60px_rgba(17,18,21,0.08)] xl:rounded-[28px] xl:p-6"
                       >
-                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F1EEFF] text-[#7263FF] xl:h-14 xl:w-14 xl:rounded-3xl">
-                          <Icon className="h-6 w-6 xl:h-7 xl:w-7" />
+                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#F1EEFF] text-[#7263FF] xl:h-14 xl:w-14 xl:rounded-3xl">
+                          <Icon className="h-5 w-5 xl:h-7 xl:w-7" />
                         </div>
-                        <h3 className="mt-4 text-xl font-semibold tracking-[-0.04em] text-[#111215] xl:mt-5 xl:text-2xl">{entry.title}</h3>
-                        <p className="mt-2 text-sm leading-6 text-[#747785] xl:mt-3 xl:leading-7">{entry.subtitle}</p>
-                        <p className="mt-4 text-sm font-semibold text-[#111215] xl:mt-5">Open section</p>
+                        <h3 className="mt-3 text-lg font-semibold tracking-[-0.04em] text-[#111215] xl:mt-5 xl:text-2xl">{entry.title}</h3>
+                        <p className="mt-2 text-xs leading-5 text-[#747785] xl:mt-3 xl:text-sm xl:leading-7">{entry.subtitle}</p>
+                        <p className="mt-3 text-xs font-semibold text-[#111215] xl:mt-5 xl:text-sm">Open section</p>
                       </button>
                     );
                   })}
