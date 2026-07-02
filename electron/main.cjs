@@ -9,10 +9,10 @@ const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
 
 function createWindow() {
   const window = new BrowserWindow({
-    width: 1440,
-    height: 920,
-    minWidth: 1080,
-    minHeight: 760,
+    width: 1100,
+    height: 800,
+    minWidth: 1100,
+    minHeight: 800,
     backgroundColor: '#f3f5f7',
     title: 'Mac Cleaner',
     webPreferences: {

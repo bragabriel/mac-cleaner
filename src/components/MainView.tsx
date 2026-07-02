@@ -713,7 +713,7 @@ export function MainView({
               Open the Login Items section in System Settings to verify which apps still relaunch after sign-in and
               which background items can recreate support files after cleanup.
             </div>
-            <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
               <button
                 type="button"
                 onClick={() => {
@@ -770,7 +770,7 @@ export function MainView({
             </div>
           }
         >
-          <div className="grid gap-4 xl:grid-cols-2">
+          <div className="grid gap-4 2xl:grid-cols-2">
             <div className="rounded-[24px] border border-black/6 bg-white px-4 py-4">
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">Launchd label</p>
               <p className="mt-3 break-all text-sm leading-7 text-[#111215]">{startupDetail.label}</p>
@@ -804,7 +804,7 @@ export function MainView({
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">Program arguments</p>
               <div className="mt-3 space-y-2">
                 {startupDetail.programArguments.map((argument) => (
-                  <div key={argument} className="rounded-2xl border border-black/6 bg-white px-3 py-2 text-sm text-[#111215]">
+                  <div key={argument} className="break-all rounded-2xl border border-black/6 bg-white px-3 py-2 text-sm leading-6 text-[#111215]">
                     {argument}
                   </div>
                 ))}
@@ -831,7 +831,7 @@ export function MainView({
             {startupControlNote(startupDetail)}
           </div>
 
-          <div className="flex flex-col gap-3 sm:flex-row">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             <button
               type="button"
               disabled={!startupDetail.supportsToggle || startupActionLoading}
@@ -1217,8 +1217,10 @@ export function MainView({
               className={cn(
                 'grid h-full min-h-0 gap-3 p-3 lg:gap-4 lg:p-4',
                 mode === 'uninstall' || mode === 'cleanup'
-                  ? 'md:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[minmax(260px,0.85fr)_minmax(320px,1fr)_minmax(320px,0.95fr)]'
-                  : 'md:grid-cols-[300px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)]',
+                  ? 'md:grid-cols-[280px_minmax(0,1fr)] 2xl:grid-cols-[minmax(260px,0.85fr)_minmax(320px,1fr)_minmax(320px,0.95fr)]'
+                  : mode === 'startup'
+                    ? 'md:grid-cols-[280px_minmax(0,1fr)] 2xl:grid-cols-[minmax(260px,0.85fr)_minmax(280px,0.7fr)_minmax(360px,1fr)]'
+                    : 'md:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[minmax(300px,0.55fr)_minmax(0,1fr)]',
               )}
             >
               {mode === 'uninstall' ? (
@@ -1255,10 +1257,12 @@ export function MainView({
                   <Panel title={app ? app.name : 'App Workspace'} subtitle="Middle column for the selected app." wide header={false}>
                     <div className="h-full min-h-0 overflow-hidden p-4 lg:p-5">{uninstallSecondColumn}</div>
                   </Panel>
-                  {app ? (
-                    <Panel title={summary ? summary.title : 'Scan Results'} subtitle="Scanned items expand into this right-side column." wide header={false}>
-                      <div className="h-full min-h-0 overflow-hidden p-4 lg:p-5">{uninstallThirdColumn}</div>
-                    </Panel>
+                  {app && summary ? (
+                    <div className="min-h-0 md:col-span-2 2xl:col-span-1">
+                      <Panel title={summary ? summary.title : 'Scan Results'} subtitle="Scanned items expand into this right-side column." wide header={false}>
+                        <div className="h-full min-h-0 overflow-hidden p-4 lg:p-5">{uninstallThirdColumn}</div>
+                      </Panel>
+                    </div>
                   ) : null}
                 </>
               ) : null}
@@ -1284,9 +1288,13 @@ export function MainView({
                   >
                     <div className="h-full min-h-0 overflow-y-auto p-4 lg:p-5">{cleanupSecondColumn}</div>
                   </Panel>
-                  <Panel title={summary ? summary.title : 'Scan Results'} subtitle="Cleanup scan results expand into this right-side column." wide header={false}>
-                    <div className="h-full min-h-0 overflow-hidden p-4 lg:p-5">{cleanupThirdColumn}</div>
-                  </Panel>
+                  {summary ? (
+                    <div className="min-h-0 md:col-span-2 2xl:col-span-1">
+                      <Panel title={summary.title} subtitle="Cleanup scan results expand into this right-side column." wide header={false}>
+                        <div className="h-full min-h-0 overflow-hidden p-4 lg:p-5">{cleanupThirdColumn}</div>
+                      </Panel>
+                    </div>
+                  ) : null}
                 </>
               ) : null}
 
@@ -1319,15 +1327,17 @@ export function MainView({
                   >
                     {startupListColumn}
                   </Panel>
-                  <Panel
-                    title={startupDetail ? startupDetail.displayName : selectedStartup.title}
-                    subtitle="Startup details stay in the final workspace column."
-                    wide
-                    scroll
-                    header={false}
-                  >
-                    <div className="p-4 lg:p-5">{startupDetailColumn}</div>
-                  </Panel>
+                  <div className="min-h-0 md:col-span-2 2xl:col-span-1">
+                    <Panel
+                      title={startupDetail ? startupDetail.displayName : selectedStartup.title}
+                      subtitle="Startup details stay in the final workspace column."
+                      wide
+                      scroll
+                      header={false}
+                    >
+                      <div className="p-4 lg:p-5">{startupDetailColumn}</div>
+                    </Panel>
+                  </div>
                 </>
               ) : null}
 
@@ -1385,7 +1395,7 @@ export function MainView({
                         }
                       >
                         <div className="space-y-4">
-                          <div className="grid gap-4 xl:grid-cols-2">
+              <div className="grid gap-4 2xl:grid-cols-2">
                             <div className="rounded-[24px] border border-black/6 bg-white px-4 py-4">
                               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">
                                 Why it matters
@@ -1422,7 +1432,7 @@ export function MainView({
                             </div>
                           </div>
 
-                          <div className="flex flex-col gap-3 sm:flex-row">
+              <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                             <button
                               type="button"
                               onClick={() => {
