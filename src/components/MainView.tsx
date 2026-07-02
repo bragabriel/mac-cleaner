@@ -1128,25 +1128,27 @@ export function MainView({
     <main className="flex h-screen min-w-0 flex-1 flex-col overflow-hidden">
       <header className="border-b border-black/6 bg-white/72 px-5 py-4 backdrop-blur lg:px-6">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div>
+          <div className="flex min-w-0 items-center gap-3">
             {mode !== 'home' ? (
               <button
                 type="button"
                 onClick={() => onModeChange('home')}
-                className="mb-3 inline-flex items-center gap-2 rounded-2xl border border-black/8 bg-white px-3 py-2 text-xs font-semibold text-[#111215] transition hover:bg-[#F4F4F8] xl:hidden"
+                className="inline-flex shrink-0 items-center gap-2 rounded-2xl border border-black/8 bg-white px-3 py-2 text-xs font-semibold text-[#111215] transition hover:bg-[#F4F4F8] xl:hidden"
               >
                 <ArrowLeft className="h-4 w-4" />
                 Home
               </button>
             ) : null}
-            <p className="text-[11px] font-semibold uppercase tracking-[0.26em] text-[#9EA2AE]">Workspace</p>
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-[#747785]">
-              {breadcrumbs.map((crumb, index) => (
-                <span key={`${crumb}-${index}`} className="inline-flex items-center gap-2">
-                  {index > 0 ? <span className="text-[#C7CAD4]">/</span> : null}
-                  <span className={index === breadcrumbs.length - 1 ? 'font-semibold text-[#111215]' : ''}>{crumb}</span>
-                </span>
-              ))}
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.26em] text-[#9EA2AE]">Workspace</p>
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-[#747785]">
+                {breadcrumbs.map((crumb, index) => (
+                  <span key={`${crumb}-${index}`} className="inline-flex items-center gap-2">
+                    {index > 0 ? <span className="text-[#C7CAD4]">/</span> : null}
+                    <span className={index === breadcrumbs.length - 1 ? 'font-semibold text-[#111215]' : ''}>{crumb}</span>
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -1194,7 +1196,7 @@ export function MainView({
                   </p>
                 </div>
 
-                <div className="mt-5 grid gap-4 md:grid-cols-2 xl:mt-6 xl:grid-cols-3 xl:gap-5">
+                <div className="mx-auto mt-5 grid max-w-4xl gap-4 md:grid-cols-2 xl:mt-6 xl:max-w-none xl:grid-cols-3 xl:gap-5">
                   {homeEntries.map((entry) => {
                     const Icon = entry.icon;
 
