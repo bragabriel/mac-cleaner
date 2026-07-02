@@ -49,10 +49,9 @@ export function Sidebar({mode, onModeChange}: SidebarProps) {
     <aside className="hidden w-[260px] shrink-0 border-r border-white/8 bg-[#101114] text-white lg:flex">
       <div className="flex h-screen w-full flex-col">
         <div className="border-b border-white/8 px-4 py-5">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/42">Mac Cleaner</p>
-          <h1 className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-white">Mac Cleaner</h1>
+          <h1 className="text-2xl font-semibold tracking-[-0.04em] text-white">Mac Cleaner</h1>
           <p className="mt-3 text-sm leading-6 text-white/58">
-            Uninstall apps, clean leftovers, and review what still deserves space on this Mac.
+            Uninstall apps, clean leftovers, and review what still deserves space.
           </p>
         </div>
 
