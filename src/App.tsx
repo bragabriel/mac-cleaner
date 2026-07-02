@@ -40,7 +40,6 @@ function normalizeSummary(nextSummary: ScanSummary): ScanSummary {
 }
 
 export default function App() {
-  const usingDesktopApi = Boolean(window.macCleaner?.listApps);
   const [mode, setMode] = useState<ProductMode>('home');
   const [cleanupMode, setCleanupMode] = useState<CleanupMode>('residues');
   const [apps, setApps] = useState<AppItem[]>(MOCK_APPS);
@@ -417,7 +416,6 @@ export default function App() {
         searchQuery={searchQuery}
         summary={summary}
         scanStatus={scanStatus}
-        usingDesktopApi={usingDesktopApi}
         onModeChange={(nextMode) => {
           setMode(nextMode);
           if (nextMode === 'uninstall' && !selectedAppId) {

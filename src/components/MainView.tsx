@@ -43,7 +43,6 @@ interface MainViewProps {
   searchQuery: string;
   summary: ScanSummary | null;
   scanStatus: ScanStatus;
-  usingDesktopApi: boolean;
   permissionSnapshot: PermissionSnapshot | null;
   permissionCheckLoading: boolean;
   permissionCheckError: string | null;
@@ -431,11 +430,13 @@ function ListColumn<T extends {id: string; title: string; subtitle: string}>({
   entries,
   activeId,
   onSelect,
+  leftSlot,
   rightMeta,
 }: {
   entries: T[];
   activeId: string | null;
   onSelect: (entry: T) => void;
+  leftSlot?: (entry: T) => ReactNode;
   rightMeta?: (entry: T) => ReactNode;
 }) {
   return (
@@ -451,9 +452,12 @@ function ListColumn<T extends {id: string; title: string; subtitle: string}>({
               activeId === entry.id ? 'bg-[#F4F1FF]' : 'bg-white hover:bg-[#FAFAFC]',
             ].join(' ')}
           >
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-[#111215]">{entry.title}</p>
-              <p className="mt-1 truncate text-xs text-[#747785]">{entry.subtitle}</p>
+            <div className="flex min-w-0 items-center gap-3">
+              {leftSlot ? <div className="shrink-0">{leftSlot(entry)}</div> : null}
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-[#111215]">{entry.title}</p>
+                <p className="mt-1 truncate text-xs text-[#747785]">{entry.subtitle}</p>
+              </div>
             </div>
             {rightMeta ? <div className="shrink-0 text-xs font-semibold text-[#747785]">{rightMeta(entry)}</div> : null}
           </button>
@@ -480,21 +484,29 @@ function DetailCard({
 }) {
   return (
     <section className="rounded-[26px] border border-black/6 bg-[#FAFAFC] p-5 lg:p-6">
-      <div className="flex flex-col gap-4 2xl:flex-row 2xl:items-start 2xl:justify-between">
-        <div className="flex min-w-0 items-start gap-4">
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-3xl bg-[#F1EEFF] text-[#7263FF]">
+      <div className="flex flex-col gap-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#F1EEFF] text-[#7263FF]">
             {icon}
           </div>
           <div className="min-w-0">
-            <h3 className="text-2xl font-semibold tracking-[-0.04em] text-[#111215]">{title}</h3>
-            <p className="mt-2 text-sm leading-7 text-[#747785]">{subtitle}</p>
+            <h3 className="text-xl font-semibold text-[#111215]">{title}</h3>
           </div>
         </div>
+        <p className="text-sm leading-7 text-[#747785]">{subtitle}</p>
         {rightSlot ? <div className="shrink-0">{rightSlot}</div> : null}
       </div>
       <div className="mt-5">{children}</div>
     </section>
   );
+}
+
+function AppIcon({app}: {app: AppItem}) {
+  if (app.iconDataUrl) {
+    return <img src={app.iconDataUrl} alt="" className="h-8 w-8 rounded-lg object-contain" draggable={false} />;
+  }
+
+  return <AppWindowMac className="h-5 w-5" />;
 }
 
 function InfoChip({label, value}: {label: string; value: string}) {
@@ -514,7 +526,6 @@ export function MainView({
   searchQuery,
   summary,
   scanStatus,
-  usingDesktopApi,
   permissionSnapshot,
   permissionCheckLoading,
   permissionCheckError,
@@ -934,9 +945,9 @@ export function MainView({
   const uninstallSecondColumn = app ? (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
       <DetailCard
-        icon={<AppWindowMac className="h-6 w-6" />}
+        icon={<AppIcon app={app} />}
         title={app.name}
-        subtitle="App details, storage footprint, and related actions stay at the top of the final column."
+        subtitle="Details, storage, and actions."
         rightSlot={<InfoChip label="App Size" value={formatBytes(app.sizeBytes)} />}
       >
         <div className="grid items-start gap-4 2xl:grid-cols-[minmax(0,1.3fr)_minmax(220px,0.7fr)]">
@@ -1008,10 +1019,17 @@ export function MainView({
 
       <div className="min-h-0 flex-1 overflow-y-auto">
               {summaryItems.map((item) => (
-          <button
+          <div
             key={item.id}
-            type="button"
             onClick={() => setSelectedResultId(item.id)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                setSelectedResultId(item.id);
+              }
+            }}
+            role="button"
+            tabIndex={0}
             className={`grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3 border-b border-black/6 px-4 py-4 text-left transition lg:px-5 ${
               item.id === selectedResult?.id ? 'bg-[#F4F1FF]' : 'bg-white hover:bg-[#F8F7FB]'
             }`}
@@ -1031,23 +1049,34 @@ export function MainView({
               <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-[#9EA2AE]">{item.category}</p>
               <p className="mt-3 truncate text-xs text-[#747785]">{item.path}</p>
             </div>
-            <span className="inline-flex h-7 min-w-[58px] shrink-0 items-center justify-center self-start whitespace-nowrap border border-black/6 bg-white px-2 text-xs text-[#747785]">
-              {formatBytes(item.sizeBytes)}
-            </span>
-          </button>
+            <div className="flex shrink-0 items-center gap-2 self-start">
+              <span className="inline-flex h-7 min-w-[58px] items-center justify-center whitespace-nowrap border border-black/6 bg-white px-2 text-xs text-[#747785]">
+                {formatBytes(item.sizeBytes)}
+              </span>
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  void navigator.clipboard.writeText(item.path);
+                }}
+                className="inline-flex h-7 items-center gap-1 border border-black/6 bg-white px-2 text-[11px] text-[#747785] transition hover:border-[#7263FF]/40 hover:text-[#111215]"
+                title={`Copy path for ${item.label}`}
+              >
+                <Copy className="h-3 w-3" />
+                <span>Copy path</span>
+              </button>
+            </div>
+          </div>
         ))}
       </div>
 
       <div className="border-t border-black/6 px-4 py-4 lg:px-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <span className="rounded-full border border-black/8 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#747785]">
-            {usingDesktopApi ? 'Live Mac access' : 'Preview mode'}
-          </span>
           <button
             type="button"
             onClick={onConfirmRemoval}
             disabled={selectedCount === 0 || scanStatus.removing}
-            className="inline-flex items-center gap-2 rounded-2xl bg-[#111215] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#252733] disabled:cursor-not-allowed disabled:opacity-40"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#111215] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#252733] disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto sm:flex-1"
           >
             {scanStatus.removing ? <Loader2 className="h-4 w-4 animate-spin" /> : <HardDriveDownload className="h-4 w-4" />}
             {scanStatus.removing
@@ -1153,9 +1182,14 @@ export function MainView({
           </div>
 
           <div className="flex items-center gap-3">
-            <span className="rounded-full border border-black/8 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#747785]">
-              {usingDesktopApi ? 'Live Mac access' : 'Preview mode'}
-            </span>
+            <a
+              href="https://github.com/bragabriel/mac-cleaner"
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-full border border-black/8 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#747785] transition hover:border-black/14 hover:bg-[#F4F4F8] hover:text-[#111215]"
+            >
+              Give it a Star
+            </a>
 
             {(mode === 'uninstall' || mode === 'cleanup') && (
               <button
@@ -1185,14 +1219,21 @@ export function MainView({
           {mode === 'home' ? (
             <div className="h-full overflow-y-auto px-6 py-6 lg:px-8">
               <div className="mx-auto max-w-6xl">
-                <div className="rounded-[28px] border border-black/6 bg-[#FAFAFC] p-6 lg:p-8">
+                <div className="rounded-[28px] border border-black/6 bg-[#FAFAFC] p-5 lg:p-6">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.26em] text-[#9EA2AE]">Home</p>
                   <h2 className="mt-3 text-2xl font-semibold tracking-[-0.04em] text-[#111215] xl:text-3xl">
                     Choose what you want to clean or manage.
                   </h2>
-                  <p className="mt-3 max-w-2xl text-sm leading-7 text-[#747785]">
-                    Every operational area stops at two content columns. Anything deeper continues vertically inside the
-                    final panel.
+                  <p className="mt-3 text-sm leading-7 text-[#747785]">
+                    Before starting, open{' '}
+                    <button
+                      type="button"
+                      onClick={() => onModeChange('settings')}
+                      className="font-semibold text-[#5B4DFF] underline underline-offset-4 transition hover:text-[#4338CA]"
+                    >
+                      Settings
+                    </button>{' '}
+                    to grant the macOS permissions required to scan, clean, and manage this project.
                   </p>
                 </div>
 
@@ -1230,7 +1271,7 @@ export function MainView({
               className={cn(
                 'grid h-full min-h-0 gap-3 p-3 lg:gap-4 lg:p-4',
                 mode === 'uninstall' || mode === 'cleanup'
-                  ? 'md:grid-cols-[280px_minmax(0,1fr)] 2xl:grid-cols-[minmax(260px,0.85fr)_minmax(320px,1fr)_minmax(320px,0.95fr)]'
+                  ? 'md:grid-cols-[280px_minmax(260px,0.78fr)_minmax(280px,1fr)] 2xl:grid-cols-[minmax(260px,0.85fr)_minmax(320px,1fr)_minmax(320px,0.95fr)]'
                   : mode === 'startup'
                     ? 'md:grid-cols-[280px_minmax(0,1fr)] 2xl:grid-cols-[minmax(260px,0.85fr)_minmax(280px,0.7fr)_minmax(360px,1fr)]'
                     : 'md:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[minmax(300px,0.55fr)_minmax(0,1fr)]',
@@ -1256,6 +1297,7 @@ export function MainView({
                         title: entry.name,
                         subtitle: entry.bundleId || entry.appPath,
                         sizeText: formatBytes(entry.sizeBytes),
+                        app: entry,
                       }))}
                       activeId={app?.id ?? null}
                       onSelect={(entry) => {
@@ -1264,6 +1306,11 @@ export function MainView({
                           onSelectApp(selectedApp);
                         }
                       }}
+                      leftSlot={(entry) => (
+                        <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#F1EEFF] text-[#7263FF]">
+                          <AppIcon app={entry.app} />
+                        </div>
+                      )}
                       rightMeta={(entry) => entry.sizeText}
                     />
                   </Panel>
@@ -1271,7 +1318,7 @@ export function MainView({
                     <div className="h-full min-h-0 overflow-hidden p-4 lg:p-5">{uninstallSecondColumn}</div>
                   </Panel>
                   {app && summary ? (
-                    <div className="min-h-0 md:col-span-2 2xl:col-span-1">
+                    <div className="min-h-0 ">
                       <Panel title={summary ? summary.title : 'Scan Results'} subtitle="Scanned items expand into this right-side column." wide header={false}>
                         <div className="h-full min-h-0 overflow-hidden p-4 lg:p-5">{uninstallThirdColumn}</div>
                       </Panel>

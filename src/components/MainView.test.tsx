@@ -150,7 +150,6 @@ const baseProps = {
     progress: 100,
     progressLabel: '',
   },
-  usingDesktopApi: false,
   permissionSnapshot,
   permissionCheckLoading: false,
   permissionCheckError: null,

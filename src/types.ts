@@ -25,6 +25,7 @@ export interface AppItem {
   bundleId: string | null;
   sizeBytes: number;
   source: AppSource;
+  iconDataUrl?: string;
 }
 
 export interface ScanItem {

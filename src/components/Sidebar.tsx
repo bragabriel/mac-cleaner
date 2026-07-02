@@ -73,7 +73,7 @@ export function Sidebar({mode, onModeChange}: SidebarProps) {
               >
                 <div
                   className={[
-                    'flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border',
+                    'flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border',
                     active ? 'border-white/12 bg-[#7263FF] text-white' : 'border-white/8 bg-white/[0.04] text-white/70',
                   ].join(' ')}
                 >
