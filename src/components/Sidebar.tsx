@@ -16,7 +16,7 @@ const navItems: Array<{
   {
     mode: 'uninstall',
     label: 'Uninstall Apps',
-    subtitle: 'Remove app bundles and leftovers',
+    subtitle: 'App bundles and leftovers',
     icon: AppWindowMac,
   },
   {
@@ -46,9 +46,9 @@ interface SidebarProps {
 
 export function Sidebar({mode, onModeChange}: SidebarProps) {
   return (
-    <aside className="hidden w-[284px] shrink-0 border-r border-white/8 bg-[#101114] text-white lg:flex">
+    <aside className="hidden w-[260px] shrink-0 border-r border-white/8 bg-[#101114] text-white lg:flex">
       <div className="flex h-screen w-full flex-col">
-        <div className="border-b border-white/8 px-5 py-5">
+        <div className="border-b border-white/8 px-4 py-5">
           <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/42">Mac Cleaner</p>
           <h1 className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-white">Mac Cleaner</h1>
           <p className="mt-3 text-sm leading-6 text-white/58">
@@ -66,7 +66,7 @@ export function Sidebar({mode, onModeChange}: SidebarProps) {
                 type="button"
                 onClick={() => onModeChange(itemMode)}
                 className={[
-                  'mb-2 flex w-full items-center gap-3 rounded-[18px] border px-4 py-3 text-left transition',
+                  'mb-2 flex w-full items-center gap-3 rounded-[18px] border px-3 py-3 text-left transition',
                   active
                     ? 'border-[#8e82ff] bg-[#1b1d26] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]'
                     : 'border-transparent bg-transparent hover:border-white/8 hover:bg-white/[0.04]',
@@ -90,10 +90,10 @@ export function Sidebar({mode, onModeChange}: SidebarProps) {
           })}
         </nav>
 
-        <div className="border-t border-white/8 px-5 py-4">
+        <div className="border-t border-white/8 px-4 py-4">
           <div className="rounded-[18px] border border-white/8 bg-white/[0.04] px-4 py-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/36">Focus</p>
-            <p className="mt-3 text-sm leading-6 text-white/58">Prioritize useful cleanup work: apps, orphan files, system junk, and startup items.</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/36">Star the project</p>
+            <p className="mt-3 text-sm leading-6 text-white/58">Mac Cleaner is open source. Open the repository and leave a star if it helps your cleanup workflow.</p>
           </div>
         </div>
       </div>
