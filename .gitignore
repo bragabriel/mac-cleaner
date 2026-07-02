@@ -11,6 +11,8 @@ metadata.json
 docs/
 .claude/
 .serena/
+.tokensave/
+AGENTS.md
 assets/.aistudio/
 .vite/
 *.tsbuildinfo

@@ -183,6 +183,9 @@ const baseProps = {
   },
   onConfirmRemoval: vi.fn(),
   onCancelRemoval: vi.fn(),
+  permissionModalOpen: false,
+  onPermissionModalClose: vi.fn(),
+  onGoToSettings: vi.fn(),
 };
 
 describe('MainView', () => {

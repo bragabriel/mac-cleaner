@@ -52,6 +52,7 @@ export default function App() {
   const [permissionSnapshot, setPermissionSnapshot] = useState<PermissionSnapshot | null>(null);
   const [permissionCheckLoading, setPermissionCheckLoading] = useState(false);
   const [permissionCheckError, setPermissionCheckError] = useState<string | null>(null);
+  const [permissionModalOpen, setPermissionModalOpen] = useState(false);
   const [startupSnapshot, setStartupSnapshot] = useState<StartupSnapshot | null>(null);
   const [startupLoading, setStartupLoading] = useState(false);
   const [startupError, setStartupError] = useState<string | null>(null);
@@ -306,6 +307,27 @@ export default function App() {
       return;
     }
 
+    let activeSnapshot = permissionSnapshot;
+    if (!activeSnapshot) {
+      try {
+        activeSnapshot = window.macCleaner?.getPermissionSnapshot
+          ? await window.macCleaner.getPermissionSnapshot()
+          : MOCK_PERMISSION_SNAPSHOT;
+        setPermissionSnapshot(activeSnapshot);
+      } catch {
+        activeSnapshot = MOCK_PERMISSION_SNAPSHOT;
+        setPermissionSnapshot(activeSnapshot);
+      }
+    }
+
+    const fullDiskAccess = activeSnapshot.permissions.find(
+      (permission) => permission.target === 'privacy-full-disk-access',
+    );
+    if (fullDiskAccess?.status === 'not-granted') {
+      setPermissionModalOpen(true);
+      return;
+    }
+
     beginProgress(
       mode === 'uninstall'
         ? 'Scanning app bundle and residues...'
@@ -367,6 +389,11 @@ export default function App() {
     }
 
     setConfirmOpen(true);
+  };
+
+  const handleGoToSettings = () => {
+    setPermissionModalOpen(false);
+    setMode('settings');
   };
 
   const confirmRemoval = async () => {
@@ -457,6 +484,9 @@ export default function App() {
         }}
         onConfirmRemoval={confirmRemoval}
         onCancelRemoval={() => setConfirmOpen(false)}
+        permissionModalOpen={permissionModalOpen}
+        onPermissionModalClose={() => setPermissionModalOpen(false)}
+        onGoToSettings={handleGoToSettings}
       />
     </div>
   );

@@ -1,4 +1,4 @@
-const { systemPreferences } = require('electron');
+const { dialog, shell, systemPreferences } = require('electron');
 
 const KNOWN_TARGETS = new Set([
   'privacy',
@@ -8,6 +8,22 @@ const KNOWN_TARGETS = new Set([
   'login-items',
 ]);
 
+const TARGET_TO_URL = {
+  'privacy': 'x-apple.systempreferences:com.apple.preference.security?Privacy',
+  'privacy-full-disk-access': 'x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles',
+  'privacy-accessibility': 'x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility',
+  'privacy-automation': 'x-apple.systempreferences:com.apple.preference.security?Privacy_Automation',
+  'login-items': 'x-apple.systempreferences:com.apple.LoginItems-Settings.extension',
+};
+
+const PERMISSION_LABELS = {
+  'privacy': 'System Privacy',
+  'privacy-full-disk-access': 'Full Disk Access',
+  'privacy-accessibility': 'Accessibility',
+  'privacy-automation': 'Automation',
+  'login-items': 'Login Items',
+};
+
 function normalizeTarget(target) {
   if (!KNOWN_TARGETS.has(target)) {
     return 'privacy';
@@ -16,24 +32,74 @@ function normalizeTarget(target) {
   return target;
 }
 
-async function openSystemSettingsTarget(target) {
-  if (typeof systemPreferences.openSystemSettings !== 'function') {
+async function promptAccessibilityPermission() {
+  if (typeof systemPreferences.isTrustedAccessibilityClient !== 'function') {
     return false;
   }
 
-  const normalizedTarget = normalizeTarget(target);
+  const granted = systemPreferences.isTrustedAccessibilityClient(true);
+  return granted;
+}
 
-  try {
-    await systemPreferences.openSystemSettings(normalizedTarget);
-    return true;
-  } catch (error) {
-    if (normalizedTarget === 'privacy' || normalizedTarget === 'login-items') {
-      throw error;
-    }
+async function promptFullDiskAccess() {
+  const { response } = await dialog.showMessageBox({
+    type: 'info',
+    title: 'Full Disk Access Required',
+    message: 'Mac Cleaner needs Full Disk Access to scan and clean protected system files.',
+    detail: 'Click "Open Settings" to grant this permission in System Settings. You may need to add Mac Cleaner manually to the list.',
+    buttons: ['Open Settings', 'Cancel'],
+    defaultId: 0,
+    cancelId: 1,
+  });
 
-    await systemPreferences.openSystemSettings('privacy');
+  if (response === 0) {
+    await shell.openExternal(TARGET_TO_URL['privacy-full-disk-access']);
     return true;
   }
+
+  return false;
+}
+
+async function promptLoginItems() {
+  const { response } = await dialog.showMessageBox({
+    type: 'info',
+    title: 'Background Items',
+    message: 'Review Background Items and Login Items in System Settings.',
+    detail: 'Some apps reinstall launch helpers that can recreate residue after cleanup. Click "Open Settings" to review them.',
+    buttons: ['Open Settings', 'Cancel'],
+    defaultId: 0,
+    cancelId: 1,
+  });
+
+  if (response === 0) {
+    await shell.openExternal(TARGET_TO_URL['login-items']);
+    return true;
+  }
+
+  return false;
+}
+
+async function openSystemSettingsTarget(target) {
+  const normalizedTarget = normalizeTarget(target);
+
+  if (normalizedTarget === 'privacy-accessibility') {
+    const granted = await promptAccessibilityPermission();
+    if (granted) {
+      return true;
+    }
+  }
+
+  if (normalizedTarget === 'privacy-full-disk-access') {
+    return promptFullDiskAccess();
+  }
+
+  if (normalizedTarget === 'login-items') {
+    return promptLoginItems();
+  }
+
+  const url = TARGET_TO_URL[normalizedTarget] ?? TARGET_TO_URL['privacy'];
+  await shell.openExternal(url);
+  return true;
 }
 
 function buildAccessibilityStatus() {

@@ -76,6 +76,9 @@ interface MainViewProps {
   };
   onConfirmRemoval: () => void | Promise<void>;
   onCancelRemoval: () => void;
+  permissionModalOpen: boolean;
+  onPermissionModalClose: () => void;
+  onGoToSettings: () => void;
 }
 
 function cn(...values: Array<string | false | null | undefined>) {
@@ -397,6 +400,7 @@ function Panel({
   title,
   subtitle,
   children,
+  footer,
   wide = false,
   scroll = false,
   header = true,
@@ -404,6 +408,7 @@ function Panel({
   title: string;
   subtitle?: string;
   children: ReactNode;
+  footer?: ReactNode;
   wide?: boolean;
   scroll?: boolean;
   header?: boolean;
@@ -422,6 +427,7 @@ function Panel({
         </header>
       ) : null}
       <div className={scroll ? 'min-h-0 flex-1 overflow-y-auto' : 'min-h-0 flex-1'}>{children}</div>
+      {footer ? footer : null}
     </section>
   );
 }
@@ -485,16 +491,18 @@ function DetailCard({
   return (
     <section className="rounded-[26px] border border-black/6 bg-[#FAFAFC] p-5 lg:p-6">
       <div className="flex flex-col gap-4">
-        <div className="flex min-w-0 items-center gap-3">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#F1EEFF] text-[#7263FF]">
-            {icon}
+        <div className="flex min-w-0 items-start justify-between gap-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#F1EEFF] text-[#7263FF]">
+              {icon}
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-xl font-semibold text-[#111215]">{title}</h3>
+            </div>
           </div>
-          <div className="min-w-0">
-            <h3 className="text-xl font-semibold text-[#111215]">{title}</h3>
-          </div>
+          {rightSlot ? <div className="shrink-0">{rightSlot}</div> : null}
         </div>
         <p className="text-sm leading-7 text-[#747785]">{subtitle}</p>
-        {rightSlot ? <div className="shrink-0">{rightSlot}</div> : null}
       </div>
       <div className="mt-5">{children}</div>
     </section>
@@ -555,6 +563,9 @@ export function MainView({
   confirmState,
   onConfirmRemoval,
   onCancelRemoval,
+  permissionModalOpen,
+  onPermissionModalClose,
+  onGoToSettings,
 }: MainViewProps) {
   const [selectedHomeId, setSelectedHomeId] = useState<string | null>(null);
   const [selectedStartupId, setSelectedStartupId] = useState<StartupCategory | null>(startupEntries[0]?.id ?? null);
@@ -1030,42 +1041,44 @@ export function MainView({
             }}
             role="button"
             tabIndex={0}
-            className={`grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3 border-b border-black/6 px-4 py-4 text-left transition lg:px-5 ${
+            className={`w-full border-b border-black/6 px-4 py-4 text-left transition lg:px-5 ${
               item.id === selectedResult?.id ? 'bg-[#F4F1FF]' : 'bg-white hover:bg-[#F8F7FB]'
             }`}
           >
-            <input
-              type="checkbox"
-              checked={item.selected}
-              onChange={(event) => {
-                event.stopPropagation();
-                onToggleItem(item.id);
-              }}
-              onClick={(event) => event.stopPropagation()}
-              className="mt-1 h-4 w-4 rounded border-black/20 accent-[#7263FF]"
-            />
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-[#111215]">{item.label}</p>
-              <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-[#9EA2AE]">{item.category}</p>
-              <p className="mt-3 truncate text-xs text-[#747785]">{item.path}</p>
-            </div>
-            <div className="flex shrink-0 items-center gap-2 self-start">
-              <span className="inline-flex h-7 min-w-[58px] items-center justify-center whitespace-nowrap border border-black/6 bg-white px-2 text-xs text-[#747785]">
-                {formatBytes(item.sizeBytes)}
-              </span>
-              <button
-                type="button"
-                onClick={(event) => {
+            <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3">
+              <input
+                type="checkbox"
+                checked={item.selected}
+                onChange={(event) => {
                   event.stopPropagation();
-                  void navigator.clipboard.writeText(item.path);
+                  onToggleItem(item.id);
                 }}
-                className="inline-flex h-7 items-center gap-1 border border-black/6 bg-white px-2 text-[11px] text-[#747785] transition hover:border-[#7263FF]/40 hover:text-[#111215]"
-                title={`Copy path for ${item.label}`}
-              >
-                <Copy className="h-3 w-3" />
-                <span>Copy path</span>
-              </button>
+                onClick={(event) => event.stopPropagation()}
+                className="mt-1 h-4 w-4 rounded border-black/20 accent-[#7263FF]"
+              />
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-[#111215]">{item.label}</p>
+                <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-[#9EA2AE]">{item.category}</p>
+              </div>
+              <div className="flex shrink-0 items-center gap-2 self-center">
+                <span className="inline-flex h-7 min-w-[58px] items-center justify-center whitespace-nowrap border border-black/6 bg-white px-2 text-xs text-[#747785]">
+                  {formatBytes(item.sizeBytes)}
+                </span>
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    void navigator.clipboard.writeText(item.path);
+                  }}
+                  className="inline-flex h-7 items-center gap-1 border border-black/6 bg-white px-2 text-[11px] text-[#747785] transition hover:border-[#7263FF]/40 hover:text-[#111215]"
+                  title={`Copy path for ${item.label}`}
+                >
+                  <Copy className="h-3 w-3" />
+                  <span>Copy path</span>
+                </button>
+              </div>
             </div>
+            <p className="mt-2 break-all text-xs text-[#747785] pl-7">{item.path}</p>
           </div>
         ))}
       </div>
@@ -1111,7 +1124,7 @@ export function MainView({
       <DetailCard
         icon={<selectedCleanup.icon className="h-6 w-6" />}
         title={selectedCleanup.title}
-        subtitle="The profile summary stays compact so scan results can grow underneath without changing the window height."
+        subtitle="Quick overview of the selected cleanup profile and its scan targets."
       >
         <div className="grid items-start gap-4">
           <div className="rounded-2xl bg-white px-4 py-4">
@@ -1124,7 +1137,7 @@ export function MainView({
               ))}
             </div>
           </div>
-          <div className="grid content-start items-start gap-3 2xl:grid-cols-1">
+          <div className="grid content-start items-start gap-3">
             <button
               type="button"
               onClick={() => {
@@ -1135,16 +1148,6 @@ export function MainView({
             >
               {scanStatus.scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <HardDriveDownload className="h-4 w-4" />}
               <span className="min-w-0 truncate">{scanStatus.scanning ? 'Scanning...' : 'Run cleanup scan'}</span>
-            </button>
-            <button
-              type="button"
-                      onClick={() => {
-                        void onOpenSystemSettings('privacy');
-                      }}
-              className="inline-flex h-11 w-full min-w-0 items-center justify-center gap-2 rounded-2xl border border-black/6 bg-white px-3 py-2.5 text-xs font-semibold leading-none text-[#111215] transition hover:bg-[#F4F4F8] sm:px-4 sm:text-sm"
-            >
-              <ShieldAlert className="h-4 w-4" />
-              <span className="min-w-0 truncate">Review permissions</span>
             </button>
           </div>
         </div>
@@ -1271,7 +1274,7 @@ export function MainView({
               className={cn(
                 'grid h-full min-h-0 gap-3 p-3 lg:gap-4 lg:p-4',
                 mode === 'uninstall' || mode === 'cleanup'
-                  ? 'md:grid-cols-[280px_minmax(260px,0.78fr)_minmax(280px,1fr)] 2xl:grid-cols-[minmax(260px,0.85fr)_minmax(320px,1fr)_minmax(320px,0.95fr)]'
+                  ? 'md:grid-cols-[280px_minmax(260px,0.9fr)_minmax(280px,1fr)] 2xl:grid-cols-[minmax(260px,0.85fr)_minmax(320px,1.15fr)_minmax(320px,0.95fr)]'
                   : mode === 'startup'
                     ? 'md:grid-cols-[280px_minmax(0,1fr)] 2xl:grid-cols-[minmax(260px,0.85fr)_minmax(280px,0.7fr)_minmax(360px,1fr)]'
                     : 'md:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[minmax(300px,0.55fr)_minmax(0,1fr)]',
@@ -1349,7 +1352,7 @@ export function MainView({
                     <div className="h-full min-h-0 overflow-y-auto p-4 lg:p-5">{cleanupSecondColumn}</div>
                   </Panel>
                   {summary ? (
-                    <div className="min-h-0 md:col-span-2 2xl:col-span-1">
+                    <div className="min-h-0">
                       <Panel title={summary.title} subtitle="Cleanup scan results expand into this right-side column." wide header={false}>
                         <div className="h-full min-h-0 overflow-hidden p-4 lg:p-5">{cleanupThirdColumn}</div>
                       </Panel>
@@ -1408,12 +1411,22 @@ export function MainView({
                     subtitle="macOS capabilities that affect scan coverage and cleanup follow-up."
                     scroll
                   >
-                    <ListColumn
-                      entries={settingsWithStatus}
-                      activeId={selectedSettingId}
-                      onSelect={(entry) => setSelectedSettingId(entry.id)}
-                      rightMeta={(entry) => permissionStatusLabel(entry.status)}
-                    />
+                    <div className="flex h-full flex-col">
+                      <div className="min-h-0 flex-1 overflow-y-auto">
+                        <ListColumn
+                          entries={settingsWithStatus}
+                          activeId={selectedSettingId}
+                          onSelect={(entry) => setSelectedSettingId(entry.id)}
+                          rightMeta={(entry) => permissionStatusLabel(entry.status)}
+                        />
+                      </div>
+                      <div className="shrink-0 px-5 py-4">
+                        <div className="rounded-[18px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-800">
+                          If macOS does not support a deep link for the exact page, the app falls back to the parent
+                          settings section so you still land close to the right control.
+                        </div>
+                      </div>
+                    </div>
                   </Panel>
                   <Panel
                     title={selectedSetting.title}
@@ -1518,11 +1531,6 @@ export function MainView({
                               Retry check
                             </button>
                           </div>
-
-                          <div className="rounded-[24px] border border-amber-200 bg-amber-50 px-4 py-4 text-sm leading-7 text-amber-800">
-                            If macOS does not support a deep link for the exact page, the app falls back to the parent
-                            settings section so you still land close to the right control.
-                          </div>
                         </div>
                       </DetailCard>
                     </div>
@@ -1598,6 +1606,45 @@ export function MainView({
               >
                 <Trash2 className="h-4 w-4" />
                 Confirm removal
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {permissionModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#111215]/54 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-[32px] border border-white/30 bg-white p-6 shadow-[0_40px_120px_rgba(17,18,21,0.28)]">
+            <div className="flex items-start gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#FFF4E8] text-[#C2410C]">
+                <ShieldAlert className="h-5 w-5" />
+              </div>
+              <div className="flex-1">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#9EA2AE]">Permission required</p>
+                <h2 className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-[#111215]">
+                  Full Disk Access needed
+                </h2>
+                <p className="mt-3 text-sm leading-7 text-[#747785]">
+                  macOS protects Library folders by default. Grant Full Disk Access in Settings so the scan can inspect Application Support, Containers, Caches, and other hidden locations.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={onPermissionModalClose}
+                className="rounded-2xl border border-black/6 bg-white px-4 py-3 text-sm font-semibold text-[#111215] transition hover:bg-[#F4F4F8]"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={onGoToSettings}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#111215] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#252733]"
+              >
+                <Settings className="h-4 w-4" />
+                Open Settings
               </button>
             </div>
           </div>
