@@ -289,6 +289,22 @@ function permissionStatusLabel(status: PermissionStatus) {
   }
 }
 
+function settingBadgeTone(priority: 'required' | 'recommended' | 'optional', status: PermissionStatus) {
+  if (status === 'granted') {
+    return permissionStatusTone(status);
+  }
+
+  return priorityTone(priority);
+}
+
+function settingBadgeLabel(priority: 'required' | 'recommended' | 'optional', status: PermissionStatus) {
+  if (status === 'granted') {
+    return permissionStatusLabel(status);
+  }
+
+  return priorityLabel(priority);
+}
+
 function startupStateTone(state: StartupCategoryState) {
   switch (state) {
     case 'available':
@@ -1835,18 +1851,10 @@ export function MainView({
                             <span
                               className={cn(
                                 'rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]',
-                                priorityTone(selectedSetting.priority),
+                                settingBadgeTone(selectedSetting.priority, selectedSetting.status),
                               )}
                             >
-                              {priorityLabel(selectedSetting.priority)}
-                            </span>
-                            <span
-                              className={cn(
-                                'rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]',
-                                permissionStatusTone(selectedSetting.status),
-                              )}
-                            >
-                              {permissionStatusLabel(selectedSetting.status)}
+                              {settingBadgeLabel(selectedSetting.priority, selectedSetting.status)}
                             </span>
                           </div>
                         }
