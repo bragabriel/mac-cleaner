@@ -21,8 +21,23 @@ const RESIDUE_ROOTS = [
 const SYSTEM_JUNK_ROOTS = [
   { category: 'caches', root: path.join(USER_LIBRARY, 'Caches') },
   { category: 'logs', root: path.join(USER_LIBRARY, 'Logs') },
+  { category: 'saved-state', root: path.join(USER_LIBRARY, 'Saved Application State') },
 ];
 const SAFE_REMOVE_ROOTS = [...APPLICATION_ROOTS, ...RESIDUE_ROOTS.map((entry) => entry.root)];
+
+function displayRoot(root) {
+  return root.startsWith(HOME) ? `~${root.slice(HOME.length)}` : root;
+}
+
+function filterRootEntries(entries, selectedRoots) {
+  if (!Array.isArray(selectedRoots) || selectedRoots.length === 0) {
+    return entries;
+  }
+
+  const allowed = new Set(selectedRoots);
+  const filtered = entries.filter((entry) => allowed.has(entry.root) || allowed.has(displayRoot(entry.root)));
+  return filtered.length ? filtered : entries;
+}
 
 function normalizeName(input) {
   return input
@@ -348,14 +363,15 @@ async function listShallowEntries(rootPath) {
   }
 }
 
-async function scanOrphanResidues() {
+async function scanOrphanResidues(selectedRoots) {
   const installedApps = await listInstalledApps();
   const installedNames = new Set(installedApps.map((app) => normalizeName(app.name)));
   const items = [];
-  const scannedRoots = RESIDUE_ROOTS.map((entry) => entry.root);
+  const roots = filterRootEntries(RESIDUE_ROOTS, selectedRoots);
+  const scannedRoots = roots.map((entry) => entry.root);
   const inaccessibleRoots = [];
 
-  for (const entry of RESIDUE_ROOTS) {
+  for (const entry of roots) {
     const result = await listShallowEntries(entry.root);
     if (result.inaccessible) {
       inaccessibleRoots.push(entry.root);
@@ -401,12 +417,13 @@ async function scanOrphanResidues() {
   };
 }
 
-async function scanSystemJunk() {
+async function scanSystemJunk(selectedRoots) {
   const items = [];
-  const scannedRoots = SYSTEM_JUNK_ROOTS.map((entry) => entry.root);
+  const roots = filterRootEntries(SYSTEM_JUNK_ROOTS, selectedRoots);
+  const scannedRoots = roots.map((entry) => entry.root);
   const inaccessibleRoots = [];
 
-  for (const entry of SYSTEM_JUNK_ROOTS) {
+  for (const entry of roots) {
     const result = await listShallowEntries(entry.root);
     if (result.inaccessible) {
       inaccessibleRoots.push(entry.root);

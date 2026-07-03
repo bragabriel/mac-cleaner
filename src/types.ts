@@ -1,4 +1,4 @@
-export type ProductMode = 'home' | 'uninstall' | 'cleanup' | 'startup' | 'settings';
+export type ProductMode = 'home' | 'uninstall' | 'cleanup' | 'startup' | 'brew' | 'settings';
 
 export type CleanupMode = 'residues' | 'system';
 
@@ -153,8 +153,8 @@ export interface StartupActionResult {
 export interface DesktopApi {
   listApps?: () => Promise<AppItem[]>;
   scanApp?: (app: AppItem) => Promise<ScanSummary>;
-  scanOrphans?: () => Promise<ScanSummary>;
-  scanSystemJunk?: () => Promise<ScanSummary>;
+  scanOrphans?: (roots?: string[]) => Promise<ScanSummary>;
+  scanSystemJunk?: (roots?: string[]) => Promise<ScanSummary>;
   removePaths?: (targetPaths: string[]) => Promise<RemovalResult>;
   revealPath?: (targetPath: string) => Promise<void>;
   openPath?: (targetPath: string) => Promise<void>;

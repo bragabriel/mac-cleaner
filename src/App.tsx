@@ -39,6 +39,18 @@ function normalizeSummary(nextSummary: ScanSummary): ScanSummary {
   };
 }
 
+function filterSummaryByRoots(summary: ScanSummary, roots?: string[]): ScanSummary {
+  if (!roots?.length) {
+    return summary;
+  }
+
+  return {
+    ...summary,
+    scannedRoots: summary.scannedRoots.filter((root) => roots.includes(root)),
+    items: summary.items.filter((item) => roots.some((root) => item.path === root || item.path.startsWith(`${root}/`))),
+  };
+}
+
 export default function App() {
   const [mode, setMode] = useState<ProductMode>('home');
   const [cleanupMode, setCleanupMode] = useState<CleanupMode>('residues');
@@ -172,7 +184,7 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (mode !== 'startup') {
+    if (mode !== 'startup' && mode !== 'brew') {
       return;
     }
 
@@ -299,7 +311,7 @@ export default function App() {
     }));
   };
 
-  const runScan = async () => {
+  const runScan = async (roots?: string[]) => {
     setLastFailures([]);
     setConfirmOpen(false);
 
@@ -347,9 +359,13 @@ export default function App() {
 
         nextSummary = window.macCleaner?.scanApp ? await window.macCleaner.scanApp(selectedApp) : MOCK_UNINSTALL_SUMMARY;
       } else if (cleanupMode === 'residues') {
-        nextSummary = window.macCleaner?.scanOrphans ? await window.macCleaner.scanOrphans() : MOCK_ORPHAN_SUMMARY;
+        nextSummary = window.macCleaner?.scanOrphans
+          ? await window.macCleaner.scanOrphans(roots)
+          : filterSummaryByRoots(MOCK_ORPHAN_SUMMARY, roots);
       } else {
-        nextSummary = window.macCleaner?.scanSystemJunk ? await window.macCleaner.scanSystemJunk() : MOCK_SYSTEM_SUMMARY;
+        nextSummary = window.macCleaner?.scanSystemJunk
+          ? await window.macCleaner.scanSystemJunk(roots)
+          : filterSummaryByRoots(MOCK_SYSTEM_SUMMARY, roots);
       }
 
       setSummary(normalizeSummary(nextSummary));

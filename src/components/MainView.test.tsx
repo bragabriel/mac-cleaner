@@ -98,9 +98,9 @@ const startupSnapshot: StartupSnapshot = {
       id: 'services',
       title: 'Brew Services',
       subtitle: 'Homebrew-managed services.',
-      state: 'unsupported',
-      detail: 'Homebrew services are not mapped yet.',
-      count: 0,
+      state: 'available',
+      detail: 'One brew service is visible.',
+      count: 1,
     },
   ],
   items: [
@@ -126,6 +126,30 @@ const startupSnapshot: StartupSnapshot = {
       supportsToggle: true,
       source: 'plist',
       domain: 'gui/501',
+      errorMessage: null,
+    },
+    {
+      id: 'services:postgresql@16',
+      category: 'services',
+      label: 'postgresql@16',
+      displayName: 'postgresql@16',
+      description: 'Homebrew service backed by the postgresql@16 formula.',
+      plistPath: '/Users/demo/Library/LaunchAgents/homebrew.mxcl.postgresql@16.plist',
+      executablePath: null,
+      program: null,
+      programArguments: [],
+      runAtLoad: true,
+      keepAlive: true,
+      disabledInPlist: false,
+      enabled: true,
+      loaded: true,
+      pid: null,
+      lastExitStatus: null,
+      scope: 'user',
+      requiresAdmin: false,
+      supportsToggle: false,
+      source: 'service',
+      domain: null,
       errorMessage: null,
     },
   ],
@@ -213,8 +237,61 @@ describe('MainView', () => {
     render(<MainView {...baseProps} mode="startup" />);
 
     expect(screen.getAllByText('Launch Agents (User)').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Brew Services')).not.toBeInTheDocument();
     await user.click(screen.getAllByText('Launch Agents (User)')[0]!);
     expect(screen.getAllByText('Spotify Helper').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Reveal plist').length).toBeGreaterThan(0);
+  });
+
+  it('renders brew services as a separate workspace', () => {
+    render(<MainView {...baseProps} mode="brew" />);
+
+    expect(screen.getAllByText('Brew Services').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('postgresql@16').length).toBeGreaterThan(0);
+    expect(screen.getByText('Homebrew service backed by the postgresql@16 formula.')).toBeInTheDocument();
+  });
+
+  it('keeps settings last on the home grid', () => {
+    render(<MainView {...baseProps} mode="home" summary={null} />);
+
+    const cards = screen.getAllByText('Open section').map((node) => node.closest('button')?.textContent ?? '');
+
+    expect(cards).toHaveLength(6);
+    expect(cards[3]).toContain('Startup Items');
+    expect(cards[4]).toContain('Brew Services');
+    expect(cards[5]).toContain('Settings');
+  });
+
+  it('keeps cleanup feature screens scoped to the selected mode', () => {
+    const {rerender} = render(<MainView {...baseProps} mode="cleanup" cleanupMode="residues" summary={null} />);
+
+    expect(screen.getByText('Cleanup Profiles')).toBeInTheDocument();
+    expect(screen.getAllByText('App Residues').length).toBeGreaterThan(0);
+    expect(screen.queryByText('System Junk')).not.toBeInTheDocument();
+
+    rerender(<MainView {...baseProps} mode="cleanup" cleanupMode="system" summary={null} />);
+
+    expect(screen.getByText('Cleanup Profiles')).toBeInTheDocument();
+    expect(screen.getAllByText('System Junk').length).toBeGreaterThan(0);
+    expect(screen.queryByText('App Residues')).not.toBeInTheDocument();
+  });
+
+  it('passes selected cleanup roots to the scan action', async () => {
+    const user = userEvent.setup();
+    const onRunScan = vi.fn();
+
+    render(<MainView {...baseProps} mode="cleanup" cleanupMode="residues" summary={null} onRunScan={onRunScan} />);
+
+    await user.click(screen.getByLabelText('~/Library/Caches'));
+    await user.click(screen.getByText('Run cleanup scan'));
+
+    expect(onRunScan).toHaveBeenCalledWith([
+      '~/Library/Application Support',
+      '~/Library/Preferences',
+      '~/Library/Containers',
+      '~/Library/Group Containers',
+      '~/Library/Logs',
+      '~/Library/Saved Application State',
+    ]);
   });
 });

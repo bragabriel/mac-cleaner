@@ -150,7 +150,7 @@ export const MOCK_SYSTEM_SUMMARY: ScanSummary = {
   title: 'System Junk',
   subtitle: 'Generic caches and logs that are not tied to one uninstall flow.',
   app: null,
-  scannedRoots: ['~/Library/Caches', '~/Library/Logs'],
+  scannedRoots: ['~/Library/Caches', '~/Library/Logs', '~/Library/Saved Application State'],
   inaccessibleRoots: [],
   items: [
     {

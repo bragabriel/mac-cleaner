@@ -127,8 +127,8 @@ async function listInstalledAppsWithIcons() {
 app.whenReady().then(() => {
   ipcMain.handle('apps:list', async () => listInstalledAppsWithIcons());
   ipcMain.handle('scan:app', async (_event, appItem) => scanAppResidues(appItem));
-  ipcMain.handle('scan:orphans', async () => scanOrphanResidues());
-  ipcMain.handle('scan:system-junk', async () => scanSystemJunk());
+  ipcMain.handle('scan:orphans', async (_event, roots) => scanOrphanResidues(roots));
+  ipcMain.handle('scan:system-junk', async (_event, roots) => scanSystemJunk(roots));
   ipcMain.handle('items:remove', async (_event, targetPaths) => removeItems(targetPaths));
   ipcMain.handle('finder:reveal', async (_event, targetPath) => shell.showItemInFolder(targetPath));
   ipcMain.handle('item:open', async (_event, targetPath) => shell.openPath(targetPath));

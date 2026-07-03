@@ -10,6 +10,7 @@ import {
   HardDriveDownload,
   Home,
   Loader2,
+  Package,
   Search,
   Settings,
   ShieldAlert,
@@ -57,7 +58,7 @@ interface MainViewProps {
   onCleanupModeChange: (mode: CleanupMode) => void;
   onSelectApp: (app: AppItem) => void;
   onSearchChange: (value: string) => void;
-  onRunScan: () => void | Promise<void>;
+  onRunScan: (roots?: string[]) => void | Promise<void>;
   onToggleItem: (itemId: string) => void;
   onToggleAll: () => void;
   onOpenSystemSettings: (target: PermissionSettingTarget) => void | Promise<void>;
@@ -133,7 +134,7 @@ const homeEntries: Array<{
   },
   {
     id: 'home-orphans',
-    title: 'Residues',
+    title: 'App Residues',
     subtitle: 'Find leftovers from apps that are already gone.',
     mode: 'cleanup',
     cleanupMode: 'residues',
@@ -153,6 +154,13 @@ const homeEntries: Array<{
     subtitle: 'Keep launch agents and login items visible without adding more side columns.',
     mode: 'startup',
     icon: ToggleRight,
+  },
+  {
+    id: 'home-brew',
+    title: 'Brew Services',
+    subtitle: 'Review Homebrew-managed background services.',
+    mode: 'brew',
+    icon: Package,
   },
   {
     id: 'home-settings',
@@ -188,12 +196,13 @@ const startupEntries: Array<{
     title: 'Launch Daemons',
     subtitle: 'System-wide launchd services and background processes.',
   },
-  {
-    id: 'services',
-    title: 'Brew Services',
-    subtitle: 'Homebrew-managed services discovered from brew services list.',
-  },
 ];
+
+const brewEntry = {
+  id: 'services' as const,
+  title: 'Brew Services',
+  subtitle: 'Homebrew-managed services discovered from brew services list.',
+};
 
 const settingsEntries: Array<{
   id: PermissionSettingTarget;
@@ -428,12 +437,14 @@ function ListColumn<T extends {id: string; title: string; subtitle: string}>({
   onSelect,
   leftSlot,
   rightMeta,
+  wrapText = false,
 }: {
   entries: T[];
   activeId: string | null;
   onSelect: (entry: T) => void;
   leftSlot?: (entry: T) => ReactNode;
   rightMeta?: (entry: T) => ReactNode;
+  wrapText?: boolean;
 }) {
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
@@ -451,8 +462,8 @@ function ListColumn<T extends {id: string; title: string; subtitle: string}>({
             <div className="flex min-w-0 items-center gap-3">
               {leftSlot ? <div className="shrink-0">{leftSlot(entry)}</div> : null}
               <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-[#111215]">{entry.title}</p>
-                <p className="mt-1 truncate text-xs text-[#747785]">{entry.subtitle}</p>
+                <p className={cn(wrapText ? 'break-words' : 'truncate', 'text-sm font-semibold text-[#111215]')}>{entry.title}</p>
+                <p className={cn(wrapText ? 'break-words leading-5' : 'truncate', 'mt-1 text-xs text-[#747785]')}>{entry.subtitle}</p>
               </div>
             </div>
             {rightMeta ? <div className="shrink-0 text-xs font-semibold text-[#747785]">{rightMeta(entry)}</div> : null}
@@ -560,14 +571,17 @@ export function MainView({
   const [selectedHomeId, setSelectedHomeId] = useState<string | null>(null);
   const [selectedStartupId, setSelectedStartupId] = useState<StartupCategory | null>(startupEntries[0]?.id ?? null);
   const [selectedStartupItemId, setSelectedStartupItemId] = useState<string | null>(null);
+  const [selectedBrewItemId, setSelectedBrewItemId] = useState<string | null>(null);
   const [selectedSettingId, setSelectedSettingId] = useState<string | null>(settingsEntries[0]?.id ?? null);
   const [selectedResultId, setSelectedResultId] = useState<string | null>(null);
+  const [selectedCleanupRoots, setSelectedCleanupRoots] = useState<string[]>([]);
 
   useEffect(() => {
     setSelectedResultId(summary?.items[0]?.id ?? null);
   }, [summary]);
 
   const selectedCleanup = cleanupEntries.find((entry) => entry.id === cleanupMode) ?? cleanupEntries[0];
+  const activeCleanupRoots = selectedCleanupRoots;
   const selectedStartup = startupEntries.find((entry) => entry.id === selectedStartupId) ?? startupEntries[0];
   const permissionStateByTarget = useMemo(
     () => new Map((permissionSnapshot?.permissions ?? []).map((permission) => [permission.target, permission])),
@@ -596,6 +610,12 @@ export function MainView({
     filteredStartupItems.find((item) => item.id === selectedStartupItemId) ??
     filteredStartupItems[0] ??
     null;
+  const brewCategory = startupSnapshot?.categories.find((category) => category.id === brewEntry.id);
+  const filteredBrewItems = (startupSnapshot?.items ?? []).filter((item) => item.category === brewEntry.id);
+  const selectedBrewItem =
+    filteredBrewItems.find((item) => item.id === selectedBrewItemId) ??
+    filteredBrewItems[0] ??
+    null;
   const scannedRoots = summary?.scannedRoots ?? [];
   const inaccessibleRoots = summary?.inaccessibleRoots ?? [];
   const selectedResult = summaryItems.find((item) => item.id === selectedResultId) ?? summaryItems[0] ?? null;
@@ -606,10 +626,28 @@ export function MainView({
   const canRunScan = mode === 'uninstall' ? Boolean(app) : mode === 'cleanup';
 
   useEffect(() => {
+    setSelectedCleanupRoots(selectedCleanup.roots);
+  }, [selectedCleanup.id]);
+
+  useEffect(() => {
+    if (mode !== 'startup') {
+      return;
+    }
+
     const nextSelectedItemId = filteredStartupItems[0]?.id ?? null;
     setSelectedStartupItemId(nextSelectedItemId);
     void onSelectStartupItem(nextSelectedItemId);
-  }, [selectedStartup.id, startupSnapshot?.checkedAt]);
+  }, [mode, selectedStartup.id, startupSnapshot?.checkedAt]);
+
+  useEffect(() => {
+    if (mode !== 'brew') {
+      return;
+    }
+
+    const nextSelectedItemId = filteredBrewItems[0]?.id ?? null;
+    setSelectedBrewItemId(nextSelectedItemId);
+    void onSelectStartupItem(nextSelectedItemId);
+  }, [mode, startupSnapshot?.checkedAt]);
 
   const breadcrumbs = useMemo(() => {
     const path = ['Mac Cleaner'];
@@ -646,9 +684,17 @@ export function MainView({
       return path;
     }
 
+    if (mode === 'brew') {
+      path.push('Brew Services');
+      if (selectedBrewItem) {
+        path.push(selectedBrewItem.displayName);
+      }
+      return path;
+    }
+
     path.push('Settings', selectedSetting.title);
     return path;
-  }, [app, mode, selectedCleanup.title, selectedResult, selectedSetting.title, selectedStartup.title, selectedStartupItem]);
+  }, [app, mode, selectedBrewItem, selectedCleanup.title, selectedResult, selectedSetting.title, selectedStartup.title, selectedStartupItem]);
 
   const startupListColumn = (
     <div className="min-h-0 flex-1 overflow-y-auto">
@@ -700,7 +746,57 @@ export function MainView({
     </div>
   );
 
-  const startupDetail = startupItemDetail ?? selectedStartupItem;
+  const brewListColumn = (
+    <div className="min-h-0 flex-1 overflow-y-auto">
+      {startupLoading ? (
+        <div className="px-5 py-8 text-sm text-[#747785]">Loading brew services...</div>
+      ) : filteredBrewItems.length ? (
+        filteredBrewItems.map((item) => {
+          const isActive = selectedBrewItem?.id === item.id;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => {
+                setSelectedBrewItemId(item.id);
+                void onSelectStartupItem(item.id);
+              }}
+              className={cn(
+                'flex w-full items-start justify-between gap-4 border-b border-black/6 px-5 py-4 text-left transition',
+                isActive ? 'bg-[#F4F1FF]' : 'bg-white hover:bg-[#FAFAFC]',
+              )}
+            >
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-[#111215]">{item.displayName}</p>
+                <p className="mt-1 truncate text-xs text-[#747785]">{item.label}</p>
+              </div>
+              <div className="shrink-0 text-right">
+                <span
+                  className={cn(
+                    'inline-flex rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em]',
+                    item.loaded ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-slate-50 text-slate-700',
+                  )}
+                >
+                  {item.loaded ? 'Loaded' : item.enabled === false ? 'Disabled' : 'Idle'}
+                </span>
+                <p className="mt-2 text-[11px] text-[#9EA2AE]">{item.scope === 'system' ? 'System' : 'User'}</p>
+              </div>
+            </button>
+          );
+        })
+      ) : (
+        <div className="px-5 py-8 text-sm text-[#747785]">
+          {brewCategory?.detail ?? 'No brew services are available right now.'}
+        </div>
+      )}
+    </div>
+  );
+
+  const startupItemDetailForMode =
+    startupItemDetail && (mode === 'brew' ? startupItemDetail.category === brewEntry.id : startupItemDetail.category === selectedStartup.id)
+      ? startupItemDetail
+      : null;
+  const startupDetail = startupItemDetailForMode ?? (mode === 'brew' ? selectedBrewItem : selectedStartupItem);
 
   const startupDetailColumn = (
     <div className="space-y-4">
@@ -715,7 +811,7 @@ export function MainView({
         </div>
       ) : null}
 
-      {selectedStartup.id === 'login-items' ? (
+      {mode === 'startup' && selectedStartup.id === 'login-items' ? (
         <DetailCard
           icon={<ShieldAlert className="h-6 w-6" />}
           title="Login Items require manual review"
@@ -923,16 +1019,18 @@ export function MainView({
                   Open executable
                 </button>
             ) : null}
-            <button
-              type="button"
-              onClick={() => {
-                void onOpenSystemSettings('login-items');
-              }}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-black/6 bg-white px-4 py-3 text-sm font-semibold text-[#111215] transition hover:bg-[#F4F4F8]"
-            >
-              <ExternalLink className="h-4 w-4" />
-              Open Login Items
-            </button>
+            {mode === 'startup' ? (
+              <button
+                type="button"
+                onClick={() => {
+                  void onOpenSystemSettings('login-items');
+                }}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-black/6 bg-white px-4 py-3 text-sm font-semibold text-[#111215] transition hover:bg-[#F4F4F8]"
+              >
+                <ExternalLink className="h-4 w-4" />
+                Open Login Items
+              </button>
+            ) : null}
           </div>
         </DetailCard>
       ) : (
@@ -1121,9 +1219,22 @@ export function MainView({
             <p className="text-[11px] uppercase tracking-[0.18em] text-[#9EA2AE]">Roots inspected</p>
             <div className="mt-3 grid max-h-[280px] gap-2 overflow-y-auto pr-1 2xl:max-h-none 2xl:grid-cols-2 2xl:overflow-visible 2xl:pr-0">
               {selectedCleanup.roots.map((root) => (
-                <div key={root} className="rounded-2xl bg-[#FAFAFC] px-3 py-3 text-sm text-[#111215]">
-                  {root}
-                </div>
+                <label
+                  key={root}
+                  className="flex items-start gap-3 rounded-2xl bg-[#FAFAFC] px-3 py-3 text-sm text-[#111215]"
+                >
+                  <input
+                    type="checkbox"
+                    checked={activeCleanupRoots.includes(root)}
+                    onChange={(event) => {
+                      setSelectedCleanupRoots((current) =>
+                        event.target.checked ? [...current, root] : current.filter((item) => item !== root),
+                      );
+                    }}
+                    className="mt-0.5 h-4 w-4 shrink-0 rounded border-black/20 accent-[#7263FF]"
+                  />
+                  <span className="min-w-0 break-all">{root}</span>
+                </label>
               ))}
             </div>
           </div>
@@ -1131,9 +1242,9 @@ export function MainView({
             <button
               type="button"
               onClick={() => {
-                void onRunScan();
+                void onRunScan(activeCleanupRoots);
               }}
-              disabled={scanStatus.scanning || scanStatus.removing}
+              disabled={scanStatus.scanning || scanStatus.removing || activeCleanupRoots.length === 0}
               className="inline-flex h-11 w-full min-w-0 items-center justify-center gap-2 rounded-2xl bg-[#111215] px-3 py-2.5 text-xs font-semibold leading-none text-white transition hover:bg-[#252733] disabled:cursor-not-allowed disabled:opacity-35 sm:px-4 sm:text-sm"
             >
               {scanStatus.scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <HardDriveDownload className="h-4 w-4" />}
@@ -1188,9 +1299,9 @@ export function MainView({
               <button
                 type="button"
                 onClick={() => {
-                  void onRunScan();
+                  void onRunScan(mode === 'cleanup' ? activeCleanupRoots : undefined);
                 }}
-                disabled={!canRunScan || scanStatus.scanning || scanStatus.removing}
+                disabled={!canRunScan || scanStatus.scanning || scanStatus.removing || (mode === 'cleanup' && activeCleanupRoots.length === 0)}
                 className="inline-flex items-center gap-2 rounded-2xl bg-[#111215] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#252733] disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {scanStatus.scanning ? (
@@ -1263,9 +1374,11 @@ export function MainView({
             <div
               className={cn(
                 'grid h-full min-h-0 gap-3 p-3 lg:gap-4 lg:p-4',
-                mode === 'uninstall' || mode === 'cleanup'
+                mode === 'uninstall'
                   ? 'md:grid-cols-[280px_minmax(260px,0.9fr)_minmax(280px,1fr)] 2xl:grid-cols-[minmax(260px,0.85fr)_minmax(320px,1.15fr)_minmax(320px,0.95fr)]'
-                  : mode === 'startup'
+                  : mode === 'cleanup'
+                    ? 'md:grid-cols-[236px_minmax(320px,1.1fr)_minmax(280px,0.95fr)] 2xl:grid-cols-[240px_minmax(380px,1.2fr)_minmax(320px,0.9fr)]'
+                  : mode === 'startup' || mode === 'brew'
                     ? 'md:grid-cols-[280px_minmax(0,1fr)] 2xl:grid-cols-[minmax(260px,0.85fr)_minmax(280px,0.7fr)_minmax(360px,1fr)]'
                     : 'md:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[minmax(300px,0.55fr)_minmax(0,1fr)]',
               )}
@@ -1322,20 +1435,23 @@ export function MainView({
 
               {mode === 'cleanup' ? (
                 <>
-                  <Panel title="Cleanup Profiles" subtitle="Choose the cleanup category you want to inspect." scroll>
+                  <Panel title="Cleanup Profiles" subtitle="Selected cleanup category." scroll>
                     <ListColumn
-                      entries={cleanupEntries.map((entry) => ({
-                        id: entry.id,
-                        title: entry.title,
-                        subtitle: entry.subtitle,
-                      }))}
+                      entries={[
+                        {
+                          id: selectedCleanup.id,
+                          title: selectedCleanup.title,
+                          subtitle: selectedCleanup.subtitle,
+                        },
+                      ]}
                       activeId={cleanupMode}
-                      onSelect={(entry) => onCleanupModeChange(entry.id as CleanupMode)}
+                      onSelect={() => undefined}
+                      wrapText
                     />
                   </Panel>
                   <Panel
                     title={selectedCleanup.title}
-                    subtitle="Profile details stay in the middle column."
+                    subtitle={selectedCleanup.subtitle}
                     wide
                     header={false}
                   >
@@ -1384,6 +1500,39 @@ export function MainView({
                     <Panel
                       title={startupDetail ? startupDetail.displayName : selectedStartup.title}
                       subtitle="Startup details stay in the final workspace column."
+                      wide
+                      scroll
+                      header={false}
+                    >
+                      <div className="p-4 lg:p-5">{startupDetailColumn}</div>
+                    </Panel>
+                  </div>
+                </>
+              ) : null}
+
+              {mode === 'brew' ? (
+                <>
+                  <Panel title="Brew Services" subtitle={brewCategory?.detail ?? brewEntry.subtitle} scroll>
+                    <ListColumn
+                      entries={[
+                        {
+                          id: brewEntry.id,
+                          title: brewEntry.title,
+                          subtitle: brewEntry.subtitle,
+                        },
+                      ]}
+                      activeId={brewEntry.id}
+                      onSelect={() => undefined}
+                      rightMeta={() => brewCategory?.count ?? 0}
+                    />
+                  </Panel>
+                  <Panel title="Services" subtitle="Homebrew-managed services discovered from brew services list." scroll>
+                    {brewListColumn}
+                  </Panel>
+                  <div className="min-h-0 md:col-span-2 2xl:col-span-1">
+                    <Panel
+                      title={startupDetail ? startupDetail.displayName : brewEntry.title}
+                      subtitle="Brew service details stay in the final workspace column."
                       wide
                       scroll
                       header={false}
