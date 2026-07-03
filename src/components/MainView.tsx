@@ -1519,18 +1519,32 @@ export function MainView({
 
               {mode === 'brew' ? (
                 <>
-                  <Panel title="Brew Services" subtitle={brewCategory?.detail ?? brewEntry.subtitle} scroll>
+                  <Panel title="Brew Categories" subtitle="Live Homebrew inventory grouped by service surface." scroll>
                     <ListColumn
                       entries={[
                         {
                           id: brewEntry.id,
                           title: brewEntry.title,
-                          subtitle: brewEntry.subtitle,
+                          subtitle: brewCategory?.detail ?? brewEntry.subtitle,
+                          state: brewCategory?.state ?? 'empty',
+                          count: brewCategory?.count ?? 0,
                         },
                       ]}
                       activeId={brewEntry.id}
                       onSelect={() => undefined}
-                      rightMeta={() => brewCategory?.count ?? 0}
+                      rightMeta={(entry) => (
+                        <div className="flex flex-col items-end gap-1">
+                          <span
+                            className={cn(
+                              'rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em]',
+                              startupStateTone(entry.state),
+                            )}
+                          >
+                            {startupStateLabel(entry.state)}
+                          </span>
+                          <span>{entry.count}</span>
+                        </div>
+                      )}
                     />
                   </Panel>
                   <Panel title="Services" subtitle="Homebrew-managed services discovered from brew services list." scroll>
