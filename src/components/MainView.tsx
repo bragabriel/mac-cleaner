@@ -210,7 +210,6 @@ const settingsEntries: Array<{
   subtitle: string;
   priority: 'required' | 'recommended' | 'optional';
   description: string;
-  impact: string;
   actionLabel: string;
 }> = [
   {
@@ -219,8 +218,7 @@ const settingsEntries: Array<{
     subtitle: 'Lets scans inspect protected Library locations and app support folders that macOS hides by default.',
     priority: 'required',
     description:
-      'Deep uninstall and orphan cleanup depend on visibility into protected directories such as Application Support, Containers, and Logs.',
-    impact: 'Without it, scans can look healthy while silently missing protected leftovers that remain on disk.',
+      'Deep uninstall and orphan cleanup depend on visibility into protected directories such as Application Support, Containers, and Logs. Without it, scans can look healthy while silently missing protected leftovers that remain on disk.',
     actionLabel: 'Open Full Disk Access',
   },
   {
@@ -229,8 +227,7 @@ const settingsEntries: Array<{
     subtitle: 'Allows the app to guide focus back to cleanup prompts and related macOS follow-up flows.',
     priority: 'recommended',
     description:
-      'Accessibility is the safest way to help users complete system-managed steps without guessing where macOS moved the current prompt.',
-    impact: 'Without it, the app can still scan files, but guided follow-up actions become less reliable.',
+      'Accessibility is the safest way to help users complete system-managed steps without guessing where macOS moved the current prompt. Without it, the app can still scan files, but guided follow-up actions become less reliable.',
     actionLabel: 'Open Accessibility',
   },
   {
@@ -239,8 +236,7 @@ const settingsEntries: Array<{
     subtitle: 'Review launch helpers and login items that can recreate residue after a cleanup.',
     priority: 'recommended',
     description:
-      'Some apps reinstall launch helpers or keep agents alive through Login Items and Background Items even after files are removed.',
-    impact: 'If this area is ignored, cleanup can look complete while background helpers continue recreating support files.',
+      'Some apps reinstall launch helpers or keep agents alive through Login Items and Background Items even after files are removed. If this area is ignored, cleanup can look complete while background helpers continue recreating support files.',
     actionLabel: 'Open Login Items',
   },
 ];
@@ -1856,19 +1852,11 @@ export function MainView({
                         }
                       >
                         <div className="space-y-4">
-              <div className="grid gap-4 2xl:grid-cols-2">
-                            <div className="rounded-[24px] border border-black/6 bg-white px-4 py-4">
-                              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">
-                                Why it matters
-                              </p>
-                              <p className="mt-3 text-sm leading-7 text-[#747785]">{selectedSetting.description}</p>
-                            </div>
-                            <div className="rounded-[24px] border border-black/6 bg-white px-4 py-4">
-                              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">
-                                If missing
-                              </p>
-                              <p className="mt-3 text-sm leading-7 text-[#747785]">{selectedSetting.impact}</p>
-                            </div>
+                          <div className="rounded-[24px] border border-black/6 bg-white px-4 py-4">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">
+                              Why it matters
+                            </p>
+                            <p className="mt-3 text-sm leading-7 text-[#747785]">{selectedSetting.description}</p>
                           </div>
 
                           <div className="rounded-[24px] border border-black/6 bg-[#FAFAFC] px-4 py-4">
