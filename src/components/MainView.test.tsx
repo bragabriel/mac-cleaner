@@ -50,11 +50,6 @@ const permissionSnapshot: PermissionSnapshot = {
       status: 'granted',
       detail: 'Accessibility access is available.',
     },
-    {
-      target: 'login-items',
-      status: 'needs-manual-review',
-      detail: 'Background Items should be reviewed manually.',
-    },
   ],
 };
 
@@ -62,14 +57,6 @@ const startupSnapshot: StartupSnapshot = {
   checkedAt: '2026-07-01T12:05:00.000Z',
   globalError: null,
   categories: [
-    {
-      id: 'login-items',
-      title: 'Login Items',
-      subtitle: 'Apps that request launch when the user session starts.',
-      state: 'permission-needed',
-      detail: 'Review Login Items in System Settings.',
-      count: 0,
-    },
     {
       id: 'launch-agents-user',
       title: 'Launch Agents (User)',
@@ -232,26 +219,6 @@ describe('MainView', () => {
     expect(screen.queryByText('Background Items')).not.toBeInTheDocument();
   });
 
-  it('renders the startup inventory workspace with live item details', async () => {
-    const user = userEvent.setup();
-
-    render(<MainView {...baseProps} mode="startup" />);
-
-    expect(screen.getAllByText('Launch Agents (User)').length).toBeGreaterThan(0);
-    expect(screen.queryByText('Brew Services')).not.toBeInTheDocument();
-    await user.click(screen.getAllByText('Launch Agents (User)')[0]!);
-    expect(screen.getAllByText('Spotify Helper').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Reveal plist').length).toBeGreaterThan(0);
-  });
-
-  it('keeps login items in the standard startup column flow', () => {
-    render(<MainView {...baseProps} mode="startup" />);
-
-    expect(screen.getByText('macOS requires manual review for apps and background items that launch at sign-in.')).toBeInTheDocument();
-    expect(screen.getByText('Open Login Items')).toBeInTheDocument();
-    expect(screen.queryByText('Select a startup item to inspect its launch metadata, executable path, and launchctl state.')).not.toBeInTheDocument();
-  });
-
   it('renders brew services as a separate workspace', () => {
     render(<MainView {...baseProps} mode="brew" />);
 
@@ -289,10 +256,9 @@ describe('MainView', () => {
 
     const cards = screen.getAllByText('Open section').map((node) => node.closest('button')?.textContent ?? '');
 
-    expect(cards).toHaveLength(6);
-    expect(cards[3]).toContain('Startup Items');
-    expect(cards[4]).toContain('Brew Services');
-    expect(cards[5]).toContain('Settings');
+    expect(cards).toHaveLength(5);
+    expect(cards[3]).toContain('Brew Services');
+    expect(cards[4]).toContain('Settings');
   });
 
   it('keeps cleanup feature screens scoped to the selected mode', () => {

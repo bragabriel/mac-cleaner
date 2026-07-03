@@ -1,4 +1,4 @@
-export type ProductMode = 'home' | 'uninstall' | 'cleanup' | 'startup' | 'brew' | 'settings';
+export type ProductMode = 'home' | 'uninstall' | 'cleanup' | 'brew' | 'settings';
 
 export type CleanupMode = 'residues' | 'system';
 
@@ -73,8 +73,7 @@ export interface RemovalResult {
 export type PermissionSettingTarget =
   | 'privacy'
   | 'privacy-full-disk-access'
-  | 'privacy-accessibility'
-  | 'login-items';
+  | 'privacy-accessibility';
 
 export type PermissionPriority = 'required' | 'recommended' | 'optional';
 

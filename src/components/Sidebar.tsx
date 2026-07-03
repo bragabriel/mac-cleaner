@@ -1,4 +1,4 @@
-import {AppWindowMac, Home, Package, Settings, Sparkles, ToggleRight} from 'lucide-react';
+import {AppWindowMac, Home, Package, Settings, Sparkles} from 'lucide-react';
 import type {ProductMode} from '../types';
 
 const navItems: Array<{
@@ -24,12 +24,6 @@ const navItems: Array<{
     label: 'Cleanup',
     subtitle: 'Orphans and system junk',
     icon: Sparkles,
-  },
-  {
-    mode: 'startup',
-    label: 'Startup Items',
-    subtitle: 'Inspect what boots with macOS',
-    icon: ToggleRight,
   },
   {
     mode: 'brew',

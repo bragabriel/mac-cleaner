@@ -15,7 +15,6 @@ import {
   Settings,
   ShieldAlert,
   Sparkles,
-  ToggleRight,
   Trash2,
 } from 'lucide-react';
 import type {
@@ -29,8 +28,6 @@ import type {
   ScanItem,
   ScanStatus,
   ScanSummary,
-  StartupCategory,
-  StartupCategoryState,
   StartupItem,
   StartupSnapshot,
   StartupAction,
@@ -149,13 +146,6 @@ const homeEntries: Array<{
     icon: HardDriveDownload,
   },
   {
-    id: 'home-startup',
-    title: 'Startup Items',
-    subtitle: 'Keep launch agents and login items visible without adding more side columns.',
-    mode: 'startup',
-    icon: ToggleRight,
-  },
-  {
     id: 'home-brew',
     title: 'Brew Services',
     subtitle: 'Inspect and control Homebrew background services in the same workspace flow.',
@@ -168,33 +158,6 @@ const homeEntries: Array<{
     subtitle: 'Permissions, scan behavior, and safety defaults in the same final column pattern.',
     mode: 'settings',
     icon: Settings,
-  },
-];
-
-const startupEntries: Array<{
-  id: StartupCategory;
-  title: string;
-  subtitle: string;
-}> = [
-  {
-    id: 'login-items',
-    title: 'Login Items',
-    subtitle: 'Apps configured to launch when the user session starts.',
-  },
-  {
-    id: 'launch-agents-user',
-    title: 'Launch Agents (User)',
-    subtitle: 'Per-user launchd services and helper jobs.',
-  },
-  {
-    id: 'launch-agents-system',
-    title: 'Launch Agents (System)',
-    subtitle: 'System-wide GUI agents and helper jobs.',
-  },
-  {
-    id: 'launch-daemons',
-    title: 'Launch Daemons',
-    subtitle: 'System-wide launchd services and background processes.',
   },
 ];
 
@@ -296,36 +259,6 @@ function settingBadgeLabel(priority: 'required' | 'recommended' | 'optional', st
   return priorityLabel(priority);
 }
 
-function startupStateTone(state: StartupCategoryState) {
-  switch (state) {
-    case 'available':
-      return 'border-emerald-200 bg-emerald-50 text-emerald-700';
-    case 'error':
-      return 'border-rose-200 bg-rose-50 text-rose-700';
-    case 'permission-needed':
-      return 'border-amber-200 bg-amber-50 text-amber-700';
-    case 'unsupported':
-      return 'border-slate-200 bg-slate-100 text-slate-700';
-    default:
-      return 'border-slate-200 bg-slate-50 text-slate-700';
-  }
-}
-
-function startupStateLabel(state: StartupCategoryState) {
-  switch (state) {
-    case 'available':
-      return 'Available';
-    case 'error':
-      return 'Error';
-    case 'permission-needed':
-      return 'Permission needed';
-    case 'unsupported':
-      return 'Unsupported';
-    default:
-      return 'Empty';
-  }
-}
-
 function startupControlNote(item: StartupItem) {
   if (item.category === 'services') {
     if (item.requiresAdmin) {
@@ -334,10 +267,6 @@ function startupControlNote(item: StartupItem) {
     return item.supportsToggle
       ? 'Homebrew service controls are available for this user service.'
       : 'This brew service is visible in read-only mode.';
-  }
-
-  if (item.category === 'login-items') {
-    return 'Managed by macOS. Review it in System Settings.';
   }
 
   if (item.requiresAdmin) {
@@ -607,8 +536,6 @@ export function MainView({
   onGoToSettings,
 }: MainViewProps) {
   const [selectedHomeId, setSelectedHomeId] = useState<string | null>(null);
-  const [selectedStartupId, setSelectedStartupId] = useState<StartupCategory | null>(startupEntries[0]?.id ?? null);
-  const [selectedStartupItemId, setSelectedStartupItemId] = useState<string | null>(null);
   const [selectedBrewItemId, setSelectedBrewItemId] = useState<string | null>(null);
   const [selectedSettingId, setSelectedSettingId] = useState<string | null>(settingsEntries[0]?.id ?? null);
   const [selectedResultId, setSelectedResultId] = useState<string | null>(null);
@@ -620,7 +547,6 @@ export function MainView({
 
   const selectedCleanup = cleanupEntries.find((entry) => entry.id === cleanupMode) ?? cleanupEntries[0];
   const activeCleanupRoots = selectedCleanupRoots;
-  const selectedStartup = startupEntries.find((entry) => entry.id === selectedStartupId) ?? startupEntries[0];
   const permissionStateByTarget = useMemo(
     () => new Map((permissionSnapshot?.permissions ?? []).map((permission) => [permission.target, permission])),
     [permissionSnapshot],
@@ -634,20 +560,6 @@ export function MainView({
   }));
   const selectedSetting = settingsWithStatus.find((entry) => entry.id === selectedSettingId) ?? settingsWithStatus[0];
   const summaryItems = summary?.items ?? [];
-  const startupCategories = startupEntries.map((entry) => {
-    const snapshotCategory = startupSnapshot?.categories.find((category) => category.id === entry.id);
-    return {
-      ...entry,
-      state: snapshotCategory?.state ?? 'empty',
-      detail: snapshotCategory?.detail ?? entry.subtitle,
-      count: snapshotCategory?.count ?? 0,
-    };
-  });
-  const filteredStartupItems = (startupSnapshot?.items ?? []).filter((item) => item.category === selectedStartup.id);
-  const selectedStartupItem =
-    filteredStartupItems.find((item) => item.id === selectedStartupItemId) ??
-    filteredStartupItems[0] ??
-    null;
   const brewCategory = startupSnapshot?.categories.find((category) => category.id === brewEntry.id);
   const filteredBrewItems = (startupSnapshot?.items ?? []).filter((item) => item.category === brewEntry.id);
   const brewEmptyStateMessage = brewCategory?.detail ?? 'No brew services are available right now.';
@@ -673,16 +585,6 @@ export function MainView({
   useEffect(() => {
     setSelectedCleanupRoots(selectedCleanup.roots);
   }, [selectedCleanup.id]);
-
-  useEffect(() => {
-    if (mode !== 'startup') {
-      return;
-    }
-
-    const nextSelectedItemId = filteredStartupItems[0]?.id ?? null;
-    setSelectedStartupItemId(nextSelectedItemId);
-    void onSelectStartupItem(nextSelectedItemId);
-  }, [mode, selectedStartup.id, startupSnapshot?.checkedAt]);
 
   useEffect(() => {
     if (mode !== 'brew') {
@@ -721,14 +623,6 @@ export function MainView({
       return path;
     }
 
-    if (mode === 'startup') {
-      path.push('Startup', selectedStartup.title);
-      if (selectedStartupItem) {
-        path.push(selectedStartupItem.displayName);
-      }
-      return path;
-    }
-
     if (mode === 'brew') {
       path.push('Brew Services');
       if (selectedBrewItem) {
@@ -739,57 +633,7 @@ export function MainView({
 
     path.push('Settings', selectedSetting.title);
     return path;
-  }, [app, mode, selectedBrewItem, selectedCleanup.title, selectedResult, selectedSetting.title, selectedStartup.title, selectedStartupItem]);
-
-  const startupListColumn = (
-    <div className="min-h-0 flex-1 overflow-y-auto">
-      {startupLoading ? (
-        <div className="px-5 py-8 text-sm text-[#747785]">Loading startup inventory...</div>
-      ) : filteredStartupItems.length ? (
-        filteredStartupItems.map((item) => {
-          const isActive = selectedStartupItem?.id === item.id;
-          return (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => {
-                setSelectedStartupItemId(item.id);
-                void onSelectStartupItem(item.id);
-              }}
-              className={cn(
-                'flex w-full items-start justify-between gap-4 border-b border-black/6 px-5 py-4 text-left transition',
-                isActive ? 'bg-[#F4F1FF]' : 'bg-white hover:bg-[#FAFAFC]',
-              )}
-            >
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-[#111215]">{item.displayName}</p>
-                <p className="mt-1 truncate text-xs text-[#747785]">{item.label}</p>
-              </div>
-              <div className="shrink-0 text-right">
-                <span
-                  className={cn(
-                    'inline-flex rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em]',
-                    item.loaded ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-slate-50 text-slate-700',
-                  )}
-                >
-                  {item.loaded ? 'Loaded' : item.enabled === false ? 'Disabled' : 'Idle'}
-                </span>
-                <p className="mt-2 text-[11px] text-[#9EA2AE]">{item.scope === 'system' ? 'System' : 'User'}</p>
-              </div>
-            </button>
-          );
-        })
-      ) : (
-        <div className="px-5 py-8 text-sm text-[#747785]">
-          {selectedStartup.id === 'login-items'
-            ? 'Review Login Items in macOS System Settings to inspect this category.'
-            : startupLoading
-              ? 'Loading startup items...'
-              : 'No startup items are available in this category right now.'}
-        </div>
-      )}
-    </div>
-  );
+  }, [app, mode, selectedBrewItem, selectedCleanup.title, selectedResult, selectedSetting.title]);
 
   const brewListColumn = (
     <div className="min-h-0 flex-1 overflow-y-auto">
@@ -835,280 +679,7 @@ export function MainView({
     </div>
   );
 
-  const startupItemDetailForMode =
-    startupItemDetail && (mode === 'brew' ? startupItemDetail.category === brewEntry.id : startupItemDetail.category === selectedStartup.id)
-      ? startupItemDetail
-      : null;
-  const startupDetail = startupItemDetailForMode ?? (mode === 'brew' ? selectedBrewItem : selectedStartupItem);
-
-  const loginItemsColumn = (
-    <div className="p-4 lg:p-5">
-      <DetailCard
-        icon={<ShieldAlert className="h-6 w-6" />}
-        title="Login Items"
-        subtitle="macOS requires manual review for apps and background items that launch at sign-in."
-      >
-        <div className="space-y-4">
-          <div className="rounded-[24px] border border-black/6 bg-white px-4 py-4 text-sm leading-7 text-[#747785]">
-            Open Login Items in System Settings to verify which apps still relaunch after sign-in and which background
-            items can recreate support files after cleanup.
-          </div>
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-            <button
-              type="button"
-              onClick={() => {
-                void onOpenSystemSettings('login-items');
-              }}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#111215] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#252733]"
-            >
-              <ExternalLink className="h-4 w-4" />
-              Open Login Items
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                void onRefreshStartupSnapshot();
-              }}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-black/6 bg-white px-4 py-3 text-sm font-semibold text-[#111215] transition hover:bg-[#F4F4F8]"
-            >
-              {startupLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-              Retry inventory
-            </button>
-          </div>
-        </div>
-      </DetailCard>
-    </div>
-  );
-
-  const startupDetailColumn = (
-    <div className="space-y-4">
-      {startupError ? (
-        <div className="rounded-[24px] border border-rose-200 bg-rose-50 px-4 py-4 text-sm leading-7 text-rose-800">
-          {startupError}
-        </div>
-      ) : null}
-      {startupActionMessage ? (
-        <div className="rounded-[24px] border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm leading-7 text-emerald-800">
-          {startupActionMessage}
-        </div>
-      ) : null}
-
-      {startupItemDetailLoading ? (
-        <div className="rounded-[24px] border border-black/6 bg-white px-4 py-6 text-sm text-[#747785]">
-          <div className="inline-flex items-center gap-2">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            {mode === 'brew' ? 'Loading brew service details...' : 'Loading startup item details...'}
-          </div>
-        </div>
-      ) : startupDetail ? (
-        <DetailCard
-          icon={startupDetail.loaded ? <CheckCircle2 className="h-6 w-6" /> : <ToggleRight className="h-6 w-6" />}
-          title={startupDetail.displayName}
-          subtitle={startupDetail.description}
-          rightSlot={
-            <div className="flex flex-wrap justify-end gap-2">
-              <span
-                className={cn(
-                  'rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]',
-                  startupDetail.loaded ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-slate-50 text-slate-700',
-                )}
-              >
-                {startupDetail.loaded ? 'Loaded' : startupDetail.enabled === false ? 'Disabled' : 'Not loaded'}
-              </span>
-              <span
-                className={cn(
-                  'rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]',
-                  startupDetail.requiresAdmin ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-slate-200 bg-slate-50 text-slate-700',
-                )}
-              >
-                {startupDetail.requiresAdmin ? 'Admin' : 'User'}
-              </span>
-            </div>
-          }
-        >
-          <div className="grid gap-4 2xl:grid-cols-2">
-            <div className="rounded-[24px] border border-black/6 bg-white px-4 py-4">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">
-                    {startupDetail.category === 'services' ? 'Formula' : 'Launchd label'}
-                  </p>
-              <p className="mt-3 break-all text-sm leading-7 text-[#111215]">{startupDetail.label}</p>
-            </div>
-            <div className="rounded-[24px] border border-black/6 bg-white px-4 py-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">Executable</p>
-              <p className="mt-3 break-all text-sm leading-7 text-[#111215]">
-                {startupDetail.executablePath ?? 'No executable path was derived from this plist.'}
-              </p>
-            </div>
-            <div className="rounded-[24px] border border-black/6 bg-white px-4 py-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">Plist path</p>
-              <p className="mt-3 break-all text-sm leading-7 text-[#111215]">
-                {startupDetail.plistPath ?? 'No plist file is attached to this item.'}
-              </p>
-            </div>
-            <div className="rounded-[24px] border border-black/6 bg-white px-4 py-4">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">
-                    {startupDetail.category === 'services' ? 'Service state' : 'Launch behavior'}
-                  </p>
-              <p className="mt-3 text-sm leading-7 text-[#111215]">
-                  {startupDetail.category === 'services' ? (
-                    <>
-                      Status: {startupDetail.loaded ? 'Started' : startupDetail.enabled === false ? 'Stopped' : 'Unknown'}
-                      <br />
-                      Scope: {startupDetail.scope === 'system' ? 'System' : startupDetail.scope === 'user' ? 'User' : 'Unknown'}
-                    </>
-                  ) : (
-                    <>
-                      Run at load: {startupDetail.runAtLoad === null ? 'Unknown' : startupDetail.runAtLoad ? 'Yes' : 'No'}
-                      <br />
-                      Keep alive: {startupDetail.keepAlive === null ? 'Unknown' : startupDetail.keepAlive ? 'Yes' : 'No'}
-                      <br />
-                      Last exit status: {startupDetail.lastExitStatus ?? 'Unavailable'}
-                    </>
-                  )}
-              </p>
-            </div>
-          </div>
-
-          {startupDetail.programArguments.length ? (
-            <div className="rounded-[24px] border border-black/6 bg-[#FAFAFC] px-4 py-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">Program arguments</p>
-              <div className="mt-3 space-y-2">
-                {startupDetail.programArguments.map((argument) => (
-                  <div key={argument} className="break-all rounded-2xl border border-black/6 bg-white px-3 py-2 text-sm leading-6 text-[#111215]">
-                    {argument}
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : null}
-
-          {startupDetail.errorMessage ? (
-            <div className="rounded-[24px] border border-amber-200 bg-amber-50 px-4 py-4 text-sm leading-7 text-amber-800">
-              {startupDetail.errorMessage}
-            </div>
-          ) : null}
-
-          <div
-            className={cn(
-              'rounded-[24px] border px-4 py-4 text-sm leading-7',
-              startupDetail.supportsToggle
-                ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
-                : startupDetail.requiresAdmin
-                  ? 'border-amber-200 bg-amber-50 text-amber-800'
-                  : 'border-slate-200 bg-slate-50 text-slate-700',
-            )}
-          >
-            {startupControlNote(startupDetail)}
-          </div>
-
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-            <button
-              type="button"
-              disabled={!startupDetail.supportsToggle || startupActionLoading}
-              onClick={() => {
-                void onRunStartupAction(startupDetail.id, startupDetail.enabled === false ? 'enable' : 'disable');
-              }}
-              className={cn(
-                'inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition',
-                startupDetail.supportsToggle
-                  ? 'bg-[#111215] text-white hover:bg-[#252733]'
-                  : 'cursor-not-allowed border border-black/6 bg-white text-[#9EA2AE]',
-              )}
-            >
-              {startupActionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ToggleRight className="h-4 w-4" />}
-                {startupDetail.category === 'services'
-                  ? startupDetail.enabled === false
-                    ? 'Start'
-                    : 'Stop'
-                  : startupDetail.enabled === false
-                    ? 'Enable'
-                    : 'Disable'}
-            </button>
-            <button
-              type="button"
-              disabled={!startupDetail.supportsToggle || startupActionLoading}
-              onClick={() => {
-                void onRunStartupAction(startupDetail.id, 'reload');
-              }}
-              className={cn(
-                'inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition',
-                startupDetail.supportsToggle
-                  ? 'border border-black/6 bg-white text-[#111215] hover:bg-[#F4F4F8]'
-                  : 'cursor-not-allowed border border-black/6 bg-white text-[#9EA2AE]',
-              )}
-            >
-              {startupActionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                {startupDetail.category === 'services' ? 'Restart' : 'Reload'}
-            </button>
-            {startupDetail.plistPath ? (
-              <>
-                <button
-                  type="button"
-                  onClick={() => {
-                    void onRevealPath(startupDetail.plistPath!);
-                  }}
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#111215] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#252733]"
-                >
-                  <FolderOpen className="h-4 w-4" />
-                  {startupDetail.category === 'services' ? 'Reveal service plist' : 'Reveal plist'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    void onCopyPath(startupDetail.plistPath!);
-                  }}
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl border border-black/6 bg-white px-4 py-3 text-sm font-semibold text-[#111215] transition hover:bg-[#F4F4F8]"
-                >
-                  <Copy className="h-4 w-4" />
-                  {startupDetail.category === 'services' ? 'Copy service plist path' : 'Copy plist path'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    void onOpenPath(startupDetail.plistPath!);
-                  }}
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl border border-black/6 bg-white px-4 py-3 text-sm font-semibold text-[#111215] transition hover:bg-[#F4F4F8]"
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  Open plist
-                </button>
-              </>
-            ) : null}
-            {startupDetail.executablePath ? (
-              <button
-                type="button"
-                onClick={() => {
-                  void onOpenPath(startupDetail.executablePath!);
-                }}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-black/6 bg-white px-4 py-3 text-sm font-semibold text-[#111215] transition hover:bg-[#F4F4F8]"
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  Open executable
-                </button>
-            ) : null}
-            {mode === 'startup' ? (
-              <button
-                type="button"
-                onClick={() => {
-                  void onOpenSystemSettings('login-items');
-                }}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-black/6 bg-white px-4 py-3 text-sm font-semibold text-[#111215] transition hover:bg-[#F4F4F8]"
-              >
-                <ExternalLink className="h-4 w-4" />
-                Open Login Items
-              </button>
-            ) : null}
-          </div>
-        </DetailCard>
-      ) : (
-        <div className="rounded-[24px] border border-black/6 bg-white px-4 py-6 text-sm leading-7 text-[#747785]">
-          {mode === 'brew'
-            ? 'Select a brew service to inspect its formula, plist path, and Homebrew service state.'
-            : 'Select a startup item to inspect its launch metadata, executable path, and launchctl state.'}
-        </div>
-      )}
-    </div>
-  );
+  const startupDetail = startupItemDetail?.category === brewEntry.id ? startupItemDetail : selectedBrewItem;
 
   const brewDetailColumn = (
     <div className="space-y-4">
@@ -1225,7 +796,7 @@ export function MainView({
                   : 'cursor-not-allowed border border-black/6 bg-white text-[#9EA2AE]',
               )}
             >
-              {startupActionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ToggleRight className="h-4 w-4" />}
+              {startupActionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Package className="h-4 w-4" />}
               {startupDetail.enabled === false ? 'Start service' : 'Stop service'}
             </button>
             <button
@@ -1629,11 +1200,9 @@ export function MainView({
                   ? 'md:grid-cols-[280px_minmax(260px,0.9fr)_minmax(280px,1fr)] 2xl:grid-cols-[minmax(260px,0.85fr)_minmax(320px,1.15fr)_minmax(320px,0.95fr)]'
                   : mode === 'cleanup'
                     ? 'md:grid-cols-[236px_minmax(320px,1.1fr)_minmax(280px,0.95fr)] 2xl:grid-cols-[240px_minmax(380px,1.2fr)_minmax(320px,0.9fr)]'
-                    : mode === 'startup'
-                      ? 'md:grid-cols-[280px_minmax(260px,0.8fr)_minmax(320px,1fr)] 2xl:grid-cols-[minmax(260px,0.85fr)_minmax(280px,0.7fr)_minmax(360px,1fr)]'
-                      : mode === 'brew'
+                    : mode === 'brew'
                         ? 'md:grid-cols-[300px_minmax(0,1fr)] 2xl:grid-cols-[minmax(300px,0.72fr)_minmax(420px,1.28fr)]'
-                    : 'md:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[minmax(300px,0.55fr)_minmax(0,1fr)]',
+                        : 'md:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[minmax(300px,0.55fr)_minmax(0,1fr)]',
               )}
             >
               {mode === 'uninstall' ? (
@@ -1714,53 +1283,6 @@ export function MainView({
                     <div className="min-h-0">
                       <Panel title={summary.title} subtitle="Cleanup scan results expand into this right-side column." wide header={false}>
                         <div className="h-full min-h-0 overflow-hidden p-4 lg:p-5">{cleanupThirdColumn}</div>
-                      </Panel>
-                    </div>
-                  ) : null}
-                </>
-              ) : null}
-
-              {mode === 'startup' ? (
-                <>
-                  <Panel title="Startup Categories" subtitle="Live launchd inventory grouped by startup surface." scroll>
-                    <ListColumn
-                      entries={startupCategories}
-                      activeId={selectedStartupId}
-                      onSelect={(entry) => setSelectedStartupId(entry.id)}
-                      wrapText
-                      rightMeta={(entry) => (
-                        <div className="flex flex-col items-end gap-1">
-                          <span
-                            className={cn(
-                              'rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em]',
-                              startupStateTone(entry.state),
-                            )}
-                          >
-                            {startupStateLabel(entry.state)}
-                          </span>
-                          <span>{entry.count}</span>
-                        </div>
-                      )}
-                    />
-                  </Panel>
-                  <Panel
-                    title={selectedStartup.title}
-                    subtitle={startupCategories.find((entry) => entry.id === selectedStartup.id)?.detail ?? selectedStartup.subtitle}
-                    scroll={selectedStartup.id !== 'login-items'}
-                    header={selectedStartup.id !== 'login-items'}
-                  >
-                    {selectedStartup.id === 'login-items' ? loginItemsColumn : startupListColumn}
-                  </Panel>
-                  {selectedStartup.id !== 'login-items' ? (
-                    <div className="min-h-0">
-                      <Panel
-                        title={startupDetail ? startupDetail.displayName : selectedStartup.title}
-                        subtitle="Startup details stay in the final workspace column."
-                        wide
-                        scroll
-                        header={false}
-                      >
-                        <div className="p-4 lg:p-5">{startupDetailColumn}</div>
                       </Panel>
                     </div>
                   ) : null}

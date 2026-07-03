@@ -184,7 +184,7 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (mode !== 'startup' && mode !== 'brew') {
+    if (mode !== 'brew') {
       return;
     }
 

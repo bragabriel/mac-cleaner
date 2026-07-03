@@ -195,11 +195,6 @@ export const MOCK_PERMISSION_SNAPSHOT: PermissionSnapshot = {
       status: 'granted',
       detail: 'Accessibility is available, so the app can guide focus back to cleanup-related system prompts.',
     },
-    {
-      target: 'login-items',
-      status: 'needs-manual-review',
-      detail: 'Background Items approval must be reviewed in System Settings because macOS does not expose a stable granted/not granted status here.',
-    },
   ],
 };
 
