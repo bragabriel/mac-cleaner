@@ -1182,12 +1182,6 @@ export function MainView({
                           rightMeta={(entry) => permissionStatusLabel(entry.status)}
                         />
                       </div>
-                      <div className="flex min-h-0 flex-1 items-center px-5 py-4">
-                        <div className="rounded-[18px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-800">
-                          If macOS does not support a deep link for the exact page, the app falls back to the parent
-                          settings section so you still land close to the right control.
-                        </div>
-                      </div>
                     </div>
                   </Panel>
                   <Panel
