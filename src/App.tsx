@@ -140,7 +140,6 @@ export default function App() {
     }
 
     void refreshPermissionSnapshot();
-    void refreshStartupSnapshot();
   }, [mode]);
 
   const refreshStartupSnapshot = async () => {
