@@ -1,4 +1,4 @@
-import { AppItem, PermissionSnapshot, ScanSummary } from './types';
+import { AppItem, BrewOutdated, BrewPackage, PermissionSnapshot, ScanSummary } from './types';
 
 export const MOCK_APPS: AppItem[] = [
   {
@@ -197,3 +197,22 @@ export const MOCK_PERMISSION_SNAPSHOT: PermissionSnapshot = {
     },
   ],
 };
+
+export const MOCK_BREW_PACKAGES: BrewPackage[] = [
+  {name: 'node', outdated: true},
+  {name: 'python@3.12', outdated: false},
+  {name: 'git', outdated: false},
+  {name: 'ripgrep', outdated: true},
+  {name: 'neovim', outdated: false},
+  {name: 'tmux', outdated: false},
+  {name: 'jq', outdated: false},
+  {name: 'fzf', outdated: true},
+  {name: 'htop', outdated: false},
+  {name: 'wget', outdated: false},
+];
+
+export const MOCK_BREW_OUTDATED: BrewOutdated[] = [
+  {name: 'node', currentVersion: '22.4.0', latestVersion: '22.5.0', pinned: false},
+  {name: 'ripgrep', currentVersion: '14.1.0', latestVersion: '14.1.1', pinned: false},
+  {name: 'fzf', currentVersion: '0.55.0', latestVersion: '0.56.0', pinned: false},
+];

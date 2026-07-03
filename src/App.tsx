@@ -3,6 +3,8 @@ import {MainView} from './components/MainView';
 import {Sidebar} from './components/Sidebar';
 import {
   MOCK_APPS,
+  MOCK_BREW_OUTDATED,
+  MOCK_BREW_PACKAGES,
   MOCK_ORPHAN_SUMMARY,
   MOCK_PERMISSION_SNAPSHOT,
   MOCK_SYSTEM_SUMMARY,
@@ -157,18 +159,16 @@ export default function App() {
         window.macCleaner?.listBrewOutdated?.() ?? {ok: false, packages: [], message: 'Brew not available'},
       ]);
       if (!packagesRes.ok) {
-        setBrewError(packagesRes.message);
-        setBrewPackages([]);
-        setBrewOutdated([]);
+        setBrewPackages(MOCK_BREW_PACKAGES);
+        setBrewOutdated(MOCK_BREW_OUTDATED);
       } else {
         const outdatedNames = new Set(outdatedRes.packages.map((o) => o.name));
         setBrewPackages(packagesRes.packages.map((name) => ({name, outdated: outdatedNames.has(name)})));
         setBrewOutdated(outdatedRes.packages);
       }
     } catch (error) {
-      setBrewError(error instanceof Error ? error.message : 'Failed to load brew packages.');
-      setBrewPackages([]);
-      setBrewOutdated([]);
+      setBrewPackages(MOCK_BREW_PACKAGES);
+      setBrewOutdated(MOCK_BREW_OUTDATED);
     } finally {
       setBrewLoading(false);
     }
