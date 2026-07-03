@@ -949,9 +949,9 @@ export function MainView({
               href="https://github.com/bragabriel/mac-cleaner"
               target="_blank"
               rel="noreferrer"
-              className="rounded-full border border-black/8 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#747785] transition-all duration-150 hover:border-black/14 hover:bg-[#F4F4F8] hover:text-[#111215] hover:scale-105 active:scale-95"
+              className="group/star rounded-full border border-black/8 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#747785] transition-all duration-200 hover:border-[#facc15]/30 hover:bg-[#fefce8] hover:text-[#ca8a04] hover:shadow-[0_0_12px_rgba(250,204,21,0.35)]"
             >
-              Give it a Star
+              Give it a ★ Star
             </a>
 
             {(mode === 'uninstall' || mode === 'cleanup') && (
