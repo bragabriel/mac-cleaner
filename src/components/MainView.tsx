@@ -11,6 +11,7 @@ import {
   Home,
   Loader2,
   Package,
+  RefreshCw,
   Search,
   Settings,
   ShieldAlert,
@@ -28,9 +29,6 @@ import type {
   ScanItem,
   ScanStatus,
   ScanSummary,
-  StartupItem,
-  StartupSnapshot,
-  StartupAction,
 } from '../types';
 
 interface MainViewProps {
@@ -44,13 +42,6 @@ interface MainViewProps {
   permissionSnapshot: PermissionSnapshot | null;
   permissionCheckLoading: boolean;
   permissionCheckError: string | null;
-  startupSnapshot: StartupSnapshot | null;
-  startupLoading: boolean;
-  startupError: string | null;
-  startupItemDetail: StartupItem | null;
-  startupItemDetailLoading: boolean;
-  startupActionLoading: boolean;
-  startupActionMessage: string | null;
   onModeChange: (mode: ProductMode) => void;
   onCleanupModeChange: (mode: CleanupMode) => void;
   onSelectApp: (app: AppItem) => void;
@@ -60,9 +51,6 @@ interface MainViewProps {
   onToggleAll: () => void;
   onOpenSystemSettings: (target: PermissionSettingTarget) => void | Promise<void>;
   onRefreshPermissionSnapshot: () => void | Promise<void>;
-  onRefreshStartupSnapshot: () => void | Promise<void>;
-  onSelectStartupItem: (itemId: string | null) => void | Promise<void>;
-  onRunStartupAction: (itemId: string, action: StartupAction) => void | Promise<void>;
   onCopyPath: (targetPath: string) => void | Promise<void>;
   onRevealPath: (targetPath: string) => void | Promise<void>;
   onOpenPath: (targetPath: string) => void | Promise<void>;
@@ -77,6 +65,16 @@ interface MainViewProps {
   permissionModalOpen: boolean;
   onPermissionModalClose: () => void;
   onGoToSettings: () => void;
+  brewPackages: Array<{name: string; outdated: boolean}>;
+  brewOutdated: Array<{name: string; currentVersion: string; latestVersion: string}>;
+  brewLoading: boolean;
+  brewError: string | null;
+  brewUpgradeLoading: string | null;
+  brewUpgradeMessage: string | null;
+  onRefreshBrewPackages: () => void | Promise<void>;
+  onBrewUpgrade: (name: string) => void | Promise<void>;
+  onBrewSearchChange: (value: string) => void;
+  brewSearchQuery: string;
 }
 
 function cn(...values: Array<string | false | null | undefined>) {
@@ -147,8 +145,8 @@ const homeEntries: Array<{
   },
   {
     id: 'home-brew',
-    title: 'Brew Services',
-    subtitle: 'Inspect and control Homebrew background services in the same workspace flow.',
+    title: 'Brew Packages',
+    subtitle: 'Browse installed Homebrew packages, check for updates, and upgrade.',
     mode: 'brew',
     icon: Package,
   },
@@ -162,9 +160,9 @@ const homeEntries: Array<{
 ];
 
 const brewEntry = {
-  id: 'services' as const,
-  title: 'Brew Services',
-  subtitle: 'Homebrew services discovered from brew services list.',
+  id: 'packages' as const,
+  title: 'Brew Packages',
+  subtitle: 'Installed Homebrew packages and available updates.',
 };
 
 const settingsEntries: Array<{
@@ -257,50 +255,6 @@ function settingBadgeLabel(priority: 'required' | 'recommended' | 'optional', st
   }
 
   return priorityLabel(priority);
-}
-
-function startupControlNote(item: StartupItem) {
-  if (item.category === 'services') {
-    if (item.requiresAdmin) {
-      return 'Root brew services are visible here, but need admin control outside this app.';
-    }
-    return item.supportsToggle
-      ? 'Homebrew service controls are available for this user service.'
-      : 'This brew service is visible in read-only mode.';
-  }
-
-  if (item.requiresAdmin) {
-    return 'Requires admin. This build keeps the item visible in read-only mode.';
-  }
-
-  if (!item.supportsToggle) {
-    return 'Managed by another app or by the system. Direct toggle is not exposed here yet.';
-  }
-
-  return 'User Launch Agent controls are available for this item.';
-}
-
-function startupScopeLabel(scope: StartupItem['scope']) {
-  switch (scope) {
-    case 'system':
-      return 'System';
-    case 'user':
-      return 'User';
-    default:
-      return 'Unknown';
-  }
-}
-
-function brewRuntimeLabel(item: StartupItem) {
-  if (item.loaded) {
-    return 'Running';
-  }
-
-  if (item.enabled === false) {
-    return 'Stopped';
-  }
-
-  return 'Unknown';
 }
 
 function formatBytes(bytes: number) {
@@ -505,13 +459,6 @@ export function MainView({
   permissionSnapshot,
   permissionCheckLoading,
   permissionCheckError,
-  startupSnapshot,
-  startupLoading,
-  startupError,
-  startupItemDetail,
-  startupItemDetailLoading,
-  startupActionLoading,
-  startupActionMessage,
   onModeChange,
   onCleanupModeChange,
   onSelectApp,
@@ -521,9 +468,6 @@ export function MainView({
   onToggleAll,
   onOpenSystemSettings,
   onRefreshPermissionSnapshot,
-  onRefreshStartupSnapshot,
-  onSelectStartupItem,
-  onRunStartupAction,
   onCopyPath,
   onRevealPath,
   onOpenPath,
@@ -534,6 +478,16 @@ export function MainView({
   permissionModalOpen,
   onPermissionModalClose,
   onGoToSettings,
+  brewPackages,
+  brewOutdated,
+  brewLoading,
+  brewError,
+  brewUpgradeLoading,
+  brewUpgradeMessage,
+  onRefreshBrewPackages,
+  onBrewUpgrade,
+  onBrewSearchChange,
+  brewSearchQuery,
 }: MainViewProps) {
   const [selectedHomeId, setSelectedHomeId] = useState<string | null>(null);
   const [selectedBrewItemId, setSelectedBrewItemId] = useState<string | null>(null);
@@ -560,19 +514,8 @@ export function MainView({
   }));
   const selectedSetting = settingsWithStatus.find((entry) => entry.id === selectedSettingId) ?? settingsWithStatus[0];
   const summaryItems = summary?.items ?? [];
-  const brewCategory = startupSnapshot?.categories.find((category) => category.id === brewEntry.id);
-  const filteredBrewItems = (startupSnapshot?.items ?? []).filter((item) => item.category === brewEntry.id);
-  const brewEmptyStateMessage = brewCategory?.detail ?? 'No brew services are available right now.';
-  const brewListEmptyMessage =
-    brewCategory?.state === 'error'
-      ? 'Brew services could not be loaded.'
-      : brewCategory?.state === 'empty'
-        ? 'No brew services to list.'
-        : 'No brew services are available right now.';
-  const selectedBrewItem =
-    filteredBrewItems.find((item) => item.id === selectedBrewItemId) ??
-    filteredBrewItems[0] ??
-    null;
+  const selectedBrewPackage = brewPackages.find((p) => p.name === selectedBrewItemId) ?? brewPackages[0] ?? null;
+  const selectedBrewOutdated = brewOutdated.find((o) => o.name === selectedBrewPackage?.name) ?? null;
   const scannedRoots = summary?.scannedRoots ?? [];
   const inaccessibleRoots = summary?.inaccessibleRoots ?? [];
   const selectedResult = summaryItems.find((item) => item.id === selectedResultId) ?? summaryItems[0] ?? null;
@@ -591,10 +534,9 @@ export function MainView({
       return;
     }
 
-    const nextSelectedItemId = filteredBrewItems[0]?.id ?? null;
+    const nextSelectedItemId = brewPackages[0]?.name ?? null;
     setSelectedBrewItemId(nextSelectedItemId);
-    void onSelectStartupItem(nextSelectedItemId);
-  }, [mode, startupSnapshot?.checkedAt]);
+  }, [mode, brewPackages]);
 
   const breadcrumbs = useMemo(() => {
     const path = ['Mac Cleaner'];
@@ -624,240 +566,122 @@ export function MainView({
     }
 
     if (mode === 'brew') {
-      path.push('Brew Services');
-      if (selectedBrewItem) {
-        path.push(selectedBrewItem.displayName);
+      path.push('Brew Packages');
+      if (selectedBrewPackage) {
+        path.push(selectedBrewPackage.name);
       }
       return path;
     }
 
     path.push('Settings', selectedSetting.title);
     return path;
-  }, [app, mode, selectedBrewItem, selectedCleanup.title, selectedResult, selectedSetting.title]);
+  }, [app, mode, selectedBrewPackage, selectedCleanup.title, selectedResult, selectedSetting.title]);
 
   const brewListColumn = (
     <div className="min-h-0 flex-1 overflow-y-auto">
-      {startupLoading ? (
-        <div className="px-5 py-8 text-sm text-[#747785]">Loading brew services...</div>
-      ) : filteredBrewItems.length ? (
-        filteredBrewItems.map((item) => {
-          const isActive = selectedBrewItem?.id === item.id;
+      {brewLoading ? (
+        <div className="px-5 py-8 text-sm text-[#747785]">Loading brew packages...</div>
+      ) : brewError ? (
+        <div className="px-5 py-8 text-sm text-rose-600">{brewError}</div>
+      ) : brewPackages.length ? (
+        brewPackages.map((pkg) => {
+          const isActive = selectedBrewPackage?.name === pkg.name;
           return (
             <button
-              key={item.id}
+              key={pkg.name}
               type="button"
-              onClick={() => {
-                setSelectedBrewItemId(item.id);
-                void onSelectStartupItem(item.id);
-              }}
+              onClick={() => setSelectedBrewItemId(pkg.name)}
               className={cn(
-                'flex w-full items-start justify-between gap-4 border-b border-black/6 px-5 py-4 text-left transition',
+                'flex w-full items-center justify-between gap-4 border-b border-black/6 px-5 py-3.5 text-left transition',
                 isActive ? 'bg-[#F4F1FF]' : 'bg-white hover:bg-[#FAFAFC]',
               )}
             >
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-[#111215]">{item.displayName}</p>
-                <p className="mt-1 truncate text-xs text-[#747785]">{item.label}</p>
+              <div className="min-w-0 flex items-center gap-3">
+                <Package className="h-4 w-4 shrink-0 text-[#7263FF]" />
+                <p className="truncate text-sm font-medium text-[#111215]">{pkg.name}</p>
               </div>
-              <div className="shrink-0 text-right">
-                <span
-                  className={cn(
-                    'inline-flex rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em]',
-                    item.loaded ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-slate-50 text-slate-700',
-                  )}
-                >
-                  {item.loaded ? 'Loaded' : item.enabled === false ? 'Disabled' : 'Idle'}
+              {pkg.outdated ? (
+                <span className="shrink-0 inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+                  Update
                 </span>
-                <p className="mt-2 text-[11px] text-[#9EA2AE]">{item.scope === 'system' ? 'System' : 'User'}</p>
-              </div>
+              ) : null}
             </button>
           );
         })
       ) : (
-        <div className="px-5 py-8 text-sm text-[#747785]">{brewListEmptyMessage}</div>
+        <div className="px-5 py-8 text-sm text-[#747785]">No brew packages installed.</div>
       )}
     </div>
   );
 
-  const startupDetail = startupItemDetail?.category === brewEntry.id ? startupItemDetail : selectedBrewItem;
-
   const brewDetailColumn = (
     <div className="space-y-4">
-      {startupError ? (
-        <div className="rounded-[24px] border border-rose-200 bg-rose-50 px-4 py-4 text-sm leading-7 text-rose-800">
-          {startupError}
-        </div>
-      ) : null}
-      {startupActionMessage ? (
+      {brewUpgradeMessage ? (
         <div className="rounded-[24px] border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm leading-7 text-emerald-800">
-          {startupActionMessage}
+          {brewUpgradeMessage}
         </div>
       ) : null}
 
-      {startupItemDetailLoading ? (
-        <div className="rounded-[24px] border border-black/6 bg-white px-4 py-6 text-sm text-[#747785]">
-          <div className="inline-flex items-center gap-2">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Loading brew service details...
-          </div>
-        </div>
-      ) : startupDetail ? (
+      {selectedBrewPackage ? (
         <DetailCard
           icon={<Package className="h-6 w-6" />}
-          title={startupDetail.displayName}
-          subtitle={startupDetail.description}
+          title={selectedBrewPackage.name}
+          subtitle={selectedBrewOutdated ? `${selectedBrewOutdated.currentVersion} → ${selectedBrewOutdated.latestVersion}` : 'Up to date'}
           rightSlot={
-            <div className="flex flex-wrap justify-end gap-2">
-              <span
+            selectedBrewOutdated ? (
+              <button
+                type="button"
+                disabled={brewUpgradeLoading !== null}
+                onClick={() => void onBrewUpgrade(selectedBrewPackage.name)}
                 className={cn(
-                  'rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]',
-                  startupDetail.loaded ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-slate-50 text-slate-700',
+                  'inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition',
+                  brewUpgradeLoading === selectedBrewPackage.name
+                    ? 'border-slate-200 bg-slate-50 text-slate-400 cursor-not-allowed'
+                    : 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100',
                 )}
               >
-                {brewRuntimeLabel(startupDetail)}
-              </span>
-              <span
-                className={cn(
-                  'rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]',
-                  startupDetail.requiresAdmin ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-slate-200 bg-slate-50 text-slate-700',
+                {brewUpgradeLoading === selectedBrewPackage.name ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
                 )}
-              >
-                {startupDetail.requiresAdmin ? 'Admin required' : startupScopeLabel(startupDetail.scope)}
+                {brewUpgradeLoading === selectedBrewPackage.name ? 'Upgrading...' : 'Upgrade'}
+              </button>
+            ) : (
+              <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-500">
+                <CheckCircle2 className="h-4 w-4" />
+                Current
               </span>
-            </div>
+            )
           }
         >
           <div className="grid gap-4 2xl:grid-cols-2">
             <div className="rounded-[24px] border border-black/6 bg-white px-4 py-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">Formula</p>
-              <p className="mt-3 break-all text-sm leading-7 text-[#111215]">{startupDetail.label}</p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">Package</p>
+              <p className="mt-3 break-all text-sm leading-7 text-[#111215]">{selectedBrewPackage.name}</p>
             </div>
-            <div className="rounded-[24px] border border-black/6 bg-white px-4 py-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">Runtime</p>
-              <p className="mt-3 text-sm leading-7 text-[#111215]">
-                Status: {brewRuntimeLabel(startupDetail)}
-                <br />
-                Scope: {startupScopeLabel(startupDetail.scope)}
-                <br />
-                PID: {startupDetail.pid ?? 'Unavailable'}
-              </p>
-            </div>
-            <div className="rounded-[24px] border border-black/6 bg-white px-4 py-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">Plist path</p>
-              <p className="mt-3 break-all text-sm leading-7 text-[#111215]">
-                {startupDetail.plistPath ?? 'This service did not expose a plist path.'}
-              </p>
-            </div>
-            <div className="rounded-[24px] border border-black/6 bg-white px-4 py-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">Executable</p>
-              <p className="mt-3 break-all text-sm leading-7 text-[#111215]">
-                {startupDetail.executablePath ?? startupDetail.program ?? 'No executable path was derived for this service.'}
-              </p>
-            </div>
-          </div>
-
-          {startupDetail.programArguments.length ? (
-            <div className="mt-4 rounded-[24px] border border-black/6 bg-[#FAFAFC] px-4 py-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">Program arguments</p>
-              <div className="mt-3 space-y-2">
-                {startupDetail.programArguments.map((argument) => (
-                  <div key={argument} className="break-all rounded-2xl border border-black/6 bg-white px-3 py-2 text-sm leading-6 text-[#111215]">
-                    {argument}
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : null}
-
-          <div
-            className={cn(
-              'mt-4 rounded-[24px] border px-4 py-4 text-sm leading-7',
-              startupDetail.supportsToggle
-                ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
-                : startupDetail.requiresAdmin
-                  ? 'border-amber-200 bg-amber-50 text-amber-800'
-                  : 'border-slate-200 bg-slate-50 text-slate-700',
-            )}
-          >
-            {startupControlNote(startupDetail)}
-          </div>
-
-          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-            <button
-              type="button"
-              disabled={!startupDetail.supportsToggle || startupActionLoading}
-              onClick={() => {
-                void onRunStartupAction(startupDetail.id, startupDetail.enabled === false ? 'enable' : 'disable');
-              }}
-              className={cn(
-                'inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition',
-                startupDetail.supportsToggle
-                  ? 'bg-[#111215] text-white hover:bg-[#252733]'
-                  : 'cursor-not-allowed border border-black/6 bg-white text-[#9EA2AE]',
-              )}
-            >
-              {startupActionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Package className="h-4 w-4" />}
-              {startupDetail.enabled === false ? 'Start service' : 'Stop service'}
-            </button>
-            <button
-              type="button"
-              disabled={!startupDetail.supportsToggle || startupActionLoading}
-              onClick={() => {
-                void onRunStartupAction(startupDetail.id, 'reload');
-              }}
-              className={cn(
-                'inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition',
-                startupDetail.supportsToggle
-                  ? 'border border-black/6 bg-white text-[#111215] hover:bg-[#F4F4F8]'
-                  : 'cursor-not-allowed border border-black/6 bg-white text-[#9EA2AE]',
-              )}
-            >
-              {startupActionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-              Restart service
-            </button>
-            {startupDetail.plistPath ? (
+            {selectedBrewOutdated ? (
               <>
-                <button
-                  type="button"
-                  onClick={() => {
-                    void onRevealPath(startupDetail.plistPath!);
-                  }}
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl border border-black/6 bg-white px-4 py-3 text-sm font-semibold text-[#111215] transition hover:bg-[#F4F4F8]"
-                >
-                  <FolderOpen className="h-4 w-4" />
-                  Reveal plist
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    void onCopyPath(startupDetail.plistPath!);
-                  }}
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl border border-black/6 bg-white px-4 py-3 text-sm font-semibold text-[#111215] transition hover:bg-[#F4F4F8]"
-                >
-                  <Copy className="h-4 w-4" />
-                  Copy plist path
-                </button>
+                <div className="rounded-[24px] border border-black/6 bg-white px-4 py-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">Installed Version</p>
+                  <p className="mt-3 text-sm leading-7 text-[#111215]">{selectedBrewOutdated.currentVersion}</p>
+                </div>
+                <div className="rounded-[24px] border border-black/6 bg-white px-4 py-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">Latest Version</p>
+                  <p className="mt-3 text-sm leading-7 text-emerald-700">{selectedBrewOutdated.latestVersion}</p>
+                </div>
               </>
-            ) : null}
-            {(startupDetail.executablePath ?? startupDetail.program) ? (
-              <button
-                type="button"
-                onClick={() => {
-                  void onOpenPath(startupDetail.executablePath ?? startupDetail.program!);
-                }}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-black/6 bg-white px-4 py-3 text-sm font-semibold text-[#111215] transition hover:bg-[#F4F4F8]"
-              >
-                <ExternalLink className="h-4 w-4" />
-                Open executable
-              </button>
-            ) : null}
+            ) : (
+              <div className="rounded-[24px] border border-black/6 bg-white px-4 py-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">Status</p>
+                <p className="mt-3 text-sm leading-7 text-[#111215]">Up to date</p>
+              </div>
+            )}
           </div>
         </DetailCard>
       ) : (
-        <div className="rounded-[24px] border border-black/6 bg-white px-4 py-6 text-sm leading-7 text-[#747785]">
-          {filteredBrewItems.length
-            ? 'Select a Homebrew service to inspect its state, plist path, and runtime details.'
-            : brewEmptyStateMessage}
+        <div className="rounded-[24px] border border-black/6 bg-white px-5 py-10 text-center text-sm text-[#747785]">
+          Select a package to view details.
         </div>
       )}
     </div>
@@ -1291,13 +1115,24 @@ export function MainView({
 
               {mode === 'brew' ? (
                 <>
-                  <Panel title="Service List" subtitle={brewEntry.subtitle} scroll>
+                  <Panel title="Installed Packages" subtitle={brewEntry.subtitle} scroll>
+                    <div className="border-b border-black/6 px-5 py-4">
+                      <div className="flex items-center gap-3 rounded-[18px] border border-black/6 bg-[#FAFAFC] px-4 py-3">
+                        <Search className="h-4 w-4 text-[#9EA2AE]" />
+                        <input
+                          value={brewSearchQuery}
+                          onChange={(event) => onBrewSearchChange(event.target.value)}
+                          placeholder="Search packages"
+                          className="w-full bg-transparent text-sm text-[#111215] outline-none placeholder:text-[#9EA2AE]"
+                        />
+                      </div>
+                    </div>
                     {brewListColumn}
                   </Panel>
                   <div className="min-h-0">
                     <Panel
-                      title={startupDetail ? startupDetail.displayName : 'Service Workspace'}
-                      subtitle="Review service status and actions without leaving the current workspace."
+                      title={selectedBrewPackage ? selectedBrewPackage.name : 'Package Detail'}
+                      subtitle={selectedBrewOutdated ? `Update available: ${selectedBrewOutdated.currentVersion} → ${selectedBrewOutdated.latestVersion}` : 'View package information and upgrade options.'}
                       wide
                       scroll
                       header={false}

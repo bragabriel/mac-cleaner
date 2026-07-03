@@ -78,6 +78,8 @@ const baseProps = {
   brewUpgradeMessage: null,
   onRefreshBrewPackages: vi.fn(),
   onBrewUpgrade: vi.fn(),
+  onBrewSearchChange: vi.fn(),
+  brewSearchQuery: '',
   onModeChange: vi.fn(),
   onCleanupModeChange: vi.fn(),
   onSelectApp: vi.fn(),

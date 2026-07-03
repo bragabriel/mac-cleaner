@@ -113,8 +113,61 @@ async function listBrewServices() {
   };
 }
 
+async function listInstalledPackages() {
+  const result = await safeExec(['list', '--formula']);
+  if (!result.ok) {
+    return {ok: false, packages: [], message: result.stderr || result.error?.message || 'Failed to list installed packages.'};
+  }
+
+  const packages = result.stdout
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((name) => name.length > 0)
+    .sort((a, b) => a.localeCompare(b));
+
+  return {ok: true, packages, message: `${packages.length} packages installed.`};
+}
+
+async function listOutdatedPackages() {
+  const result = await safeExec(['outdated', '--json']);
+  if (!result.ok) {
+    return {ok: false, packages: [], message: result.stderr || result.error?.message || 'Failed to check outdated packages.'};
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(result.stdout);
+  } catch {
+    return {ok: false, packages: [], message: 'Failed to parse outdated list.'};
+  }
+
+  const packages = [];
+  for (const [name, info] of Object.entries(parsed)) {
+    packages.push({
+      name,
+      currentVersion: info.installed?.[0]?.version ?? 'unknown',
+      latestVersion: info.current_version ?? 'unknown',
+      pinned: info.pinned ?? false,
+    });
+  }
+
+  packages.sort((a, b) => a.name.localeCompare(b.name));
+  return {ok: true, packages, message: `${packages.length} packages outdated.`};
+}
+
+async function upgradePackage(name) {
+  const result = await safeExec(['upgrade', name]);
+  return {
+    ok: result.ok,
+    message: result.ok ? `${name} upgraded successfully.` : (result.stderr || result.error?.message || `Failed to upgrade ${name}.`),
+  };
+}
+
 module.exports = {
   listBrewServices,
+  listInstalledPackages,
+  listOutdatedPackages,
   parseServiceRow,
   runBrewServiceAction,
+  upgradePackage,
 };

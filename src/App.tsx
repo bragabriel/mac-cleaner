@@ -69,6 +69,7 @@ export default function App() {
   const [brewError, setBrewError] = useState<string | null>(null);
   const [brewUpgradeLoading, setBrewUpgradeLoading] = useState<string | null>(null);
   const [brewUpgradeMessage, setBrewUpgradeMessage] = useState<string | null>(null);
+  const [brewSearchQuery, setBrewSearchQuery] = useState('');
   const progressIntervalRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -200,6 +201,14 @@ export default function App() {
       return haystack.includes(query);
     });
   }, [apps, searchQuery]);
+
+  const filteredBrewPackages = useMemo(() => {
+    const query = brewSearchQuery.trim().toLowerCase();
+    if (!query) {
+      return brewPackages;
+    }
+    return brewPackages.filter((pkg) => pkg.name.toLowerCase().includes(query));
+  }, [brewPackages, brewSearchQuery]);
 
   const selectedApp = apps.find((app) => app.id === selectedAppId) ?? null;
 
@@ -429,7 +438,7 @@ export default function App() {
         permissionModalOpen={permissionModalOpen}
         onPermissionModalClose={() => setPermissionModalOpen(false)}
         onGoToSettings={handleGoToSettings}
-        brewPackages={brewPackages}
+        brewPackages={filteredBrewPackages}
         brewOutdated={brewOutdated}
         brewLoading={brewLoading}
         brewError={brewError}
@@ -437,6 +446,8 @@ export default function App() {
         brewUpgradeMessage={brewUpgradeMessage}
         onRefreshBrewPackages={refreshBrewPackages}
         onBrewUpgrade={handleBrewUpgrade}
+        onBrewSearchChange={setBrewSearchQuery}
+        brewSearchQuery={brewSearchQuery}
       />
     </div>
   );
