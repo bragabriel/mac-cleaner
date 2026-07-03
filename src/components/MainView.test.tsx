@@ -215,8 +215,16 @@ describe('MainView', () => {
   it('renders the settings permissions workspace with actions', async () => {
     const user = userEvent.setup();
     const onRefreshPermissionSnapshot = vi.fn();
+    const onRefreshStartupSnapshot = vi.fn();
 
-    render(<MainView {...baseProps} mode="settings" onRefreshPermissionSnapshot={onRefreshPermissionSnapshot} />);
+    render(
+      <MainView
+        {...baseProps}
+        mode="settings"
+        onRefreshPermissionSnapshot={onRefreshPermissionSnapshot}
+        onRefreshStartupSnapshot={onRefreshStartupSnapshot}
+      />,
+    );
 
     expect(screen.getByText('Open Full Disk Access')).toBeInTheDocument();
     expect(screen.getByText('Retry check')).toBeInTheDocument();
@@ -229,6 +237,11 @@ describe('MainView', () => {
     await user.click(screen.getByText('Retry check'));
 
     expect(onRefreshPermissionSnapshot).toHaveBeenCalledOnce();
+
+    await user.click(screen.getByText('Background Items'));
+    await user.click(screen.getByText('Retry check'));
+
+    expect(onRefreshStartupSnapshot).toHaveBeenCalledOnce();
   });
 
   it('renders the startup inventory workspace with live item details', async () => {

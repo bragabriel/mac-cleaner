@@ -630,6 +630,15 @@ export function MainView({
       'No live permission signal is available yet. Open System Settings and verify it manually.',
   }));
   const selectedSetting = settingsWithStatus.find((entry) => entry.id === selectedSettingId) ?? settingsWithStatus[0];
+  const backgroundItemsCategory = startupSnapshot?.categories.find((category) => category.id === 'login-items');
+  const selectedSettingUsesStartupSnapshot = selectedSetting.id === 'login-items';
+  const selectedSettingStatusDetail =
+    selectedSettingUsesStartupSnapshot && backgroundItemsCategory?.detail
+      ? backgroundItemsCategory.detail
+      : selectedSetting.statusDetail;
+  const selectedSettingCheckedAt = selectedSettingUsesStartupSnapshot ? startupSnapshot?.checkedAt : permissionSnapshot?.checkedAt;
+  const selectedSettingLoading = selectedSettingUsesStartupSnapshot ? startupLoading : permissionCheckLoading;
+  const selectedSettingError = selectedSettingUsesStartupSnapshot ? startupError : permissionCheckError;
   const summaryItems = summary?.items ?? [];
   const startupCategories = startupEntries.map((entry) => {
     const snapshotCategory = startupSnapshot?.categories.find((category) => category.id === entry.id);
@@ -1867,20 +1876,20 @@ export function MainView({
                               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">
                                 Current check
                               </p>
-                              {permissionCheckLoading ? (
+                              {selectedSettingLoading ? (
                                 <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-700">
                                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                   Checking
                                 </span>
                               ) : null}
                             </div>
-                            <p className="mt-3 text-sm leading-7 text-[#747785]">{selectedSetting.statusDetail}</p>
+                            <p className="mt-3 text-sm leading-7 text-[#747785]">{selectedSettingStatusDetail}</p>
                             <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-[#747785]">
                               <span>
                                 Last checked{' '}
-                                {permissionSnapshot ? formatDate(permissionSnapshot.checkedAt) : 'when the first snapshot is available'}
+                                {selectedSettingCheckedAt ? formatDate(selectedSettingCheckedAt) : 'when the first snapshot is available'}
                               </span>
-                              {permissionCheckError ? <span className="text-rose-700">{permissionCheckError}</span> : null}
+                              {selectedSettingError ? <span className="text-rose-700">{selectedSettingError}</span> : null}
                             </div>
                           </div>
 
@@ -1898,11 +1907,16 @@ export function MainView({
                             <button
                               type="button"
                               onClick={() => {
+                                if (selectedSettingUsesStartupSnapshot) {
+                                  void onRefreshStartupSnapshot();
+                                  return;
+                                }
+
                                 void onRefreshPermissionSnapshot();
                               }}
                               className="inline-flex items-center justify-center gap-2 rounded-2xl border border-black/6 bg-white px-4 py-3 text-sm font-semibold text-[#111215] transition hover:bg-[#F4F4F8]"
                             >
-                              {permissionCheckLoading ? (
+                              {selectedSettingLoading ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />
                               ) : (
                                 <Sparkles className="h-4 w-4" />
