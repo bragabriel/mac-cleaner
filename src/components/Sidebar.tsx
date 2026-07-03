@@ -1,8 +1,9 @@
-import {AppWindowMac, Home, Package, Settings, Sparkles} from 'lucide-react';
-import type {ProductMode} from '../types';
+import {AppWindowMac, HardDriveDownload, Home, Package, Settings, Sparkles} from 'lucide-react';
+import type {CleanupMode, ProductMode} from '../types';
 
 const navItems: Array<{
   mode: ProductMode;
+  cleanupMode?: CleanupMode;
   label: string;
   subtitle: string;
   icon: typeof Home;
@@ -21,14 +22,22 @@ const navItems: Array<{
   },
   {
     mode: 'cleanup',
-    label: 'Cleanup',
-    subtitle: 'Orphans and system junk',
+    cleanupMode: 'residues',
+    label: 'App Residues',
+    subtitle: 'Find leftovers from uninstalled apps',
     icon: Sparkles,
   },
   {
+    mode: 'cleanup',
+    cleanupMode: 'system',
+    label: 'System Junk',
+    subtitle: 'Caches, logs, and transient data',
+    icon: HardDriveDownload,
+  },
+  {
     mode: 'brew',
-    label: 'Brew Services',
-    subtitle: 'Homebrew background jobs',
+    label: 'Brew Packages',
+    subtitle: 'Homebrew packages and updates',
     icon: Package,
   },
   {
@@ -41,10 +50,12 @@ const navItems: Array<{
 
 interface SidebarProps {
   mode: ProductMode;
+  cleanupMode: CleanupMode;
   onModeChange: (mode: ProductMode) => void;
+  onCleanupModeChange: (mode: CleanupMode) => void;
 }
 
-export function Sidebar({mode, onModeChange}: SidebarProps) {
+export function Sidebar({mode, cleanupMode, onModeChange, onCleanupModeChange}: SidebarProps) {
   return (
     <aside className="hidden w-[260px] shrink-0 border-r border-white/8 bg-[#101114] text-white xl:flex">
       <div className="flex h-screen w-full flex-col">
@@ -56,14 +67,17 @@ export function Sidebar({mode, onModeChange}: SidebarProps) {
         </div>
 
         <nav className="flex-1 px-3 py-4">
-          {navItems.map(({mode: itemMode, label, subtitle, icon: Icon}) => {
-            const active = mode === itemMode;
+          {navItems.map(({mode: itemMode, cleanupMode: itemCleanup, label, subtitle, icon: Icon}) => {
+            const active = itemCleanup ? mode === itemMode && cleanupMode === itemCleanup : mode === itemMode;
 
             return (
               <button
-                key={itemMode}
+                key={`${itemMode}-${itemCleanup ?? ''}`}
                 type="button"
-                onClick={() => onModeChange(itemMode)}
+                onClick={() => {
+                  onModeChange(itemMode);
+                  if (itemCleanup) onCleanupModeChange(itemCleanup);
+                }}
                 className={[
                   'mb-2 flex w-full items-center gap-3 rounded-[18px] border px-3 py-3 text-left transition',
                   active
