@@ -75,6 +75,8 @@ interface MainViewProps {
   onBrewUpgrade: (name: string) => void | Promise<void>;
   onBrewSearchChange: (value: string) => void;
   brewSearchQuery: string;
+  brewFilter: 'all' | 'updated' | 'pending';
+  onBrewFilterChange: (filter: 'all' | 'updated' | 'pending') => void;
 }
 
 function cn(...values: Array<string | false | null | undefined>) {
@@ -488,6 +490,8 @@ export function MainView({
   onBrewUpgrade,
   onBrewSearchChange,
   brewSearchQuery,
+  brewFilter,
+  onBrewFilterChange,
 }: MainViewProps) {
   const [selectedHomeId, setSelectedHomeId] = useState<string | null>(null);
   const [selectedBrewItemId, setSelectedBrewItemId] = useState<string | null>(null);
@@ -1116,7 +1120,7 @@ export function MainView({
               {mode === 'brew' ? (
                 <>
                   <Panel title="Installed Packages" subtitle={brewEntry.subtitle} scroll>
-                    <div className="border-b border-black/6 px-5 py-4">
+                    <div className="border-b border-black/6 px-5 py-4 space-y-3">
                       <div className="flex items-center gap-3 rounded-[18px] border border-black/6 bg-[#FAFAFC] px-4 py-3">
                         <Search className="h-4 w-4 text-[#9EA2AE]" />
                         <input
@@ -1125,6 +1129,25 @@ export function MainView({
                           placeholder="Search packages"
                           className="w-full bg-transparent text-sm text-[#111215] outline-none placeholder:text-[#9EA2AE]"
                         />
+                      </div>
+                      <div className="flex gap-2">
+                        {(['all', 'updated', 'pending'] as const).map((filter) => {
+                          const labels = {all: 'Todos', updated: 'Atualizados', pending: 'Pendentes'};
+                          const isActive = brewFilter === filter;
+                          return (
+                            <button
+                              key={filter}
+                              onClick={() => onBrewFilterChange(filter)}
+                              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                                isActive
+                                  ? 'bg-[#111215] text-white'
+                                  : 'bg-[#F2F3F5] text-[#6B6F7B] hover:bg-[#E8E9EC]'
+                              }`}
+                            >
+                              {labels[filter]}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
                     {brewListColumn}

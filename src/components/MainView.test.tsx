@@ -80,6 +80,8 @@ const baseProps = {
   onBrewUpgrade: vi.fn(),
   onBrewSearchChange: vi.fn(),
   brewSearchQuery: '',
+  brewFilter: 'all' as const,
+  onBrewFilterChange: vi.fn(),
   onModeChange: vi.fn(),
   onCleanupModeChange: vi.fn(),
   onSelectApp: vi.fn(),
