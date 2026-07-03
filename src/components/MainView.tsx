@@ -158,7 +158,7 @@ const homeEntries: Array<{
   {
     id: 'home-brew',
     title: 'Brew Services',
-    subtitle: 'Review Homebrew-managed background services.',
+    subtitle: 'Inspect and control Homebrew background services in the same workspace flow.',
     mode: 'brew',
     icon: Package,
   },
@@ -201,7 +201,7 @@ const startupEntries: Array<{
 const brewEntry = {
   id: 'services' as const,
   title: 'Brew Services',
-  subtitle: 'Homebrew-managed services discovered from brew services list.',
+  subtitle: 'Homebrew services discovered from brew services list.',
 };
 
 const settingsEntries: Array<{
@@ -324,6 +324,15 @@ function startupStateLabel(state: StartupCategoryState) {
 }
 
 function startupControlNote(item: StartupItem) {
+  if (item.category === 'services') {
+    if (item.requiresAdmin) {
+      return 'Root brew services are visible here, but need admin control outside this app.';
+    }
+    return item.supportsToggle
+      ? 'Homebrew service controls are available for this user service.'
+      : 'This brew service is visible in read-only mode.';
+  }
+
   if (item.category === 'login-items') {
     return 'Managed by macOS. Review it in System Settings.';
   }
@@ -337,6 +346,29 @@ function startupControlNote(item: StartupItem) {
   }
 
   return 'User Launch Agent controls are available for this item.';
+}
+
+function startupScopeLabel(scope: StartupItem['scope']) {
+  switch (scope) {
+    case 'system':
+      return 'System';
+    case 'user':
+      return 'User';
+    default:
+      return 'Unknown';
+  }
+}
+
+function brewRuntimeLabel(item: StartupItem) {
+  if (item.loaded) {
+    return 'Running';
+  }
+
+  if (item.enabled === false) {
+    return 'Stopped';
+  }
+
+  return 'Unknown';
 }
 
 function formatBytes(bytes: number) {
@@ -403,6 +435,7 @@ function Panel({
   wide = false,
   scroll = false,
   header = true,
+  className,
 }: {
   title: string;
   subtitle?: string;
@@ -411,12 +444,14 @@ function Panel({
   wide?: boolean;
   scroll?: boolean;
   header?: boolean;
+  className?: string;
 }) {
   return (
     <section
       className={[
         'flex h-full min-h-0 flex-col overflow-hidden rounded-[28px] border border-black/6 bg-white',
         wide ? 'min-w-0' : '',
+        className ?? '',
       ].join(' ')}
     >
       {header ? (
@@ -854,7 +889,7 @@ export function MainView({
         <div className="rounded-[24px] border border-black/6 bg-white px-4 py-6 text-sm text-[#747785]">
           <div className="inline-flex items-center gap-2">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Loading startup item details...
+            {mode === 'brew' ? 'Loading brew service details...' : 'Loading startup item details...'}
           </div>
         </div>
       ) : startupDetail ? (
@@ -885,7 +920,9 @@ export function MainView({
         >
           <div className="grid gap-4 2xl:grid-cols-2">
             <div className="rounded-[24px] border border-black/6 bg-white px-4 py-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">Launchd label</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">
+                    {startupDetail.category === 'services' ? 'Formula' : 'Launchd label'}
+                  </p>
               <p className="mt-3 break-all text-sm leading-7 text-[#111215]">{startupDetail.label}</p>
             </div>
             <div className="rounded-[24px] border border-black/6 bg-white px-4 py-4">
@@ -901,13 +938,25 @@ export function MainView({
               </p>
             </div>
             <div className="rounded-[24px] border border-black/6 bg-white px-4 py-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">Launch behavior</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">
+                    {startupDetail.category === 'services' ? 'Service state' : 'Launch behavior'}
+                  </p>
               <p className="mt-3 text-sm leading-7 text-[#111215]">
-                Run at load: {startupDetail.runAtLoad === null ? 'Unknown' : startupDetail.runAtLoad ? 'Yes' : 'No'}
-                <br />
-                Keep alive: {startupDetail.keepAlive === null ? 'Unknown' : startupDetail.keepAlive ? 'Yes' : 'No'}
-                <br />
-                Last exit status: {startupDetail.lastExitStatus ?? 'Unavailable'}
+                  {startupDetail.category === 'services' ? (
+                    <>
+                      Status: {startupDetail.loaded ? 'Started' : startupDetail.enabled === false ? 'Stopped' : 'Unknown'}
+                      <br />
+                      Scope: {startupDetail.scope === 'system' ? 'System' : startupDetail.scope === 'user' ? 'User' : 'Unknown'}
+                    </>
+                  ) : (
+                    <>
+                      Run at load: {startupDetail.runAtLoad === null ? 'Unknown' : startupDetail.runAtLoad ? 'Yes' : 'No'}
+                      <br />
+                      Keep alive: {startupDetail.keepAlive === null ? 'Unknown' : startupDetail.keepAlive ? 'Yes' : 'No'}
+                      <br />
+                      Last exit status: {startupDetail.lastExitStatus ?? 'Unavailable'}
+                    </>
+                  )}
               </p>
             </div>
           </div>
@@ -959,7 +1008,13 @@ export function MainView({
               )}
             >
               {startupActionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ToggleRight className="h-4 w-4" />}
-              {startupDetail.enabled === false ? 'Enable' : 'Disable'}
+                {startupDetail.category === 'services'
+                  ? startupDetail.enabled === false
+                    ? 'Start'
+                    : 'Stop'
+                  : startupDetail.enabled === false
+                    ? 'Enable'
+                    : 'Disable'}
             </button>
             <button
               type="button"
@@ -975,7 +1030,7 @@ export function MainView({
               )}
             >
               {startupActionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-              Reload
+                {startupDetail.category === 'services' ? 'Restart' : 'Reload'}
             </button>
             {startupDetail.plistPath ? (
               <>
@@ -987,7 +1042,7 @@ export function MainView({
                   className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#111215] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#252733]"
                 >
                   <FolderOpen className="h-4 w-4" />
-                  Reveal plist
+                  {startupDetail.category === 'services' ? 'Reveal service plist' : 'Reveal plist'}
                 </button>
                 <button
                   type="button"
@@ -997,7 +1052,7 @@ export function MainView({
                   className="inline-flex items-center justify-center gap-2 rounded-2xl border border-black/6 bg-white px-4 py-3 text-sm font-semibold text-[#111215] transition hover:bg-[#F4F4F8]"
                 >
                   <Copy className="h-4 w-4" />
-                  Copy plist path
+                  {startupDetail.category === 'services' ? 'Copy service plist path' : 'Copy plist path'}
                 </button>
                 <button
                   type="button"
@@ -1039,7 +1094,189 @@ export function MainView({
         </DetailCard>
       ) : (
         <div className="rounded-[24px] border border-black/6 bg-white px-4 py-6 text-sm leading-7 text-[#747785]">
-          Select a startup item to inspect its launch metadata, executable path, and launchctl state.
+          {mode === 'brew'
+            ? 'Select a brew service to inspect its formula, plist path, and Homebrew service state.'
+            : 'Select a startup item to inspect its launch metadata, executable path, and launchctl state.'}
+        </div>
+      )}
+    </div>
+  );
+
+  const brewDetailColumn = (
+    <div className="space-y-4">
+      {startupError ? (
+        <div className="rounded-[24px] border border-rose-200 bg-rose-50 px-4 py-4 text-sm leading-7 text-rose-800">
+          {startupError}
+        </div>
+      ) : null}
+      {startupActionMessage ? (
+        <div className="rounded-[24px] border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm leading-7 text-emerald-800">
+          {startupActionMessage}
+        </div>
+      ) : null}
+
+      {startupItemDetailLoading ? (
+        <div className="rounded-[24px] border border-black/6 bg-white px-4 py-6 text-sm text-[#747785]">
+          <div className="inline-flex items-center gap-2">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Loading brew service details...
+          </div>
+        </div>
+      ) : startupDetail ? (
+        <DetailCard
+          icon={<Package className="h-6 w-6" />}
+          title={startupDetail.displayName}
+          subtitle={startupDetail.description}
+          rightSlot={
+            <div className="flex flex-wrap justify-end gap-2">
+              <span
+                className={cn(
+                  'rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]',
+                  startupDetail.loaded ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-slate-50 text-slate-700',
+                )}
+              >
+                {brewRuntimeLabel(startupDetail)}
+              </span>
+              <span
+                className={cn(
+                  'rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]',
+                  startupDetail.requiresAdmin ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-slate-200 bg-slate-50 text-slate-700',
+                )}
+              >
+                {startupDetail.requiresAdmin ? 'Admin required' : startupScopeLabel(startupDetail.scope)}
+              </span>
+            </div>
+          }
+        >
+          <div className="grid gap-4 2xl:grid-cols-2">
+            <div className="rounded-[24px] border border-black/6 bg-white px-4 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">Formula</p>
+              <p className="mt-3 break-all text-sm leading-7 text-[#111215]">{startupDetail.label}</p>
+            </div>
+            <div className="rounded-[24px] border border-black/6 bg-white px-4 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">Runtime</p>
+              <p className="mt-3 text-sm leading-7 text-[#111215]">
+                Status: {brewRuntimeLabel(startupDetail)}
+                <br />
+                Scope: {startupScopeLabel(startupDetail.scope)}
+                <br />
+                PID: {startupDetail.pid ?? 'Unavailable'}
+              </p>
+            </div>
+            <div className="rounded-[24px] border border-black/6 bg-white px-4 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">Plist path</p>
+              <p className="mt-3 break-all text-sm leading-7 text-[#111215]">
+                {startupDetail.plistPath ?? 'This service did not expose a plist path.'}
+              </p>
+            </div>
+            <div className="rounded-[24px] border border-black/6 bg-white px-4 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">Executable</p>
+              <p className="mt-3 break-all text-sm leading-7 text-[#111215]">
+                {startupDetail.executablePath ?? startupDetail.program ?? 'No executable path was derived for this service.'}
+              </p>
+            </div>
+          </div>
+
+          {startupDetail.programArguments.length ? (
+            <div className="mt-4 rounded-[24px] border border-black/6 bg-[#FAFAFC] px-4 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">Program arguments</p>
+              <div className="mt-3 space-y-2">
+                {startupDetail.programArguments.map((argument) => (
+                  <div key={argument} className="break-all rounded-2xl border border-black/6 bg-white px-3 py-2 text-sm leading-6 text-[#111215]">
+                    {argument}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          <div
+            className={cn(
+              'mt-4 rounded-[24px] border px-4 py-4 text-sm leading-7',
+              startupDetail.supportsToggle
+                ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                : startupDetail.requiresAdmin
+                  ? 'border-amber-200 bg-amber-50 text-amber-800'
+                  : 'border-slate-200 bg-slate-50 text-slate-700',
+            )}
+          >
+            {startupControlNote(startupDetail)}
+          </div>
+
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+            <button
+              type="button"
+              disabled={!startupDetail.supportsToggle || startupActionLoading}
+              onClick={() => {
+                void onRunStartupAction(startupDetail.id, startupDetail.enabled === false ? 'enable' : 'disable');
+              }}
+              className={cn(
+                'inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition',
+                startupDetail.supportsToggle
+                  ? 'bg-[#111215] text-white hover:bg-[#252733]'
+                  : 'cursor-not-allowed border border-black/6 bg-white text-[#9EA2AE]',
+              )}
+            >
+              {startupActionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ToggleRight className="h-4 w-4" />}
+              {startupDetail.enabled === false ? 'Start service' : 'Stop service'}
+            </button>
+            <button
+              type="button"
+              disabled={!startupDetail.supportsToggle || startupActionLoading}
+              onClick={() => {
+                void onRunStartupAction(startupDetail.id, 'reload');
+              }}
+              className={cn(
+                'inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition',
+                startupDetail.supportsToggle
+                  ? 'border border-black/6 bg-white text-[#111215] hover:bg-[#F4F4F8]'
+                  : 'cursor-not-allowed border border-black/6 bg-white text-[#9EA2AE]',
+              )}
+            >
+              {startupActionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+              Restart service
+            </button>
+            {startupDetail.plistPath ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void onRevealPath(startupDetail.plistPath!);
+                  }}
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl border border-black/6 bg-white px-4 py-3 text-sm font-semibold text-[#111215] transition hover:bg-[#F4F4F8]"
+                >
+                  <FolderOpen className="h-4 w-4" />
+                  Reveal plist
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void onCopyPath(startupDetail.plistPath!);
+                  }}
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl border border-black/6 bg-white px-4 py-3 text-sm font-semibold text-[#111215] transition hover:bg-[#F4F4F8]"
+                >
+                  <Copy className="h-4 w-4" />
+                  Copy plist path
+                </button>
+              </>
+            ) : null}
+            {(startupDetail.executablePath ?? startupDetail.program) ? (
+              <button
+                type="button"
+                onClick={() => {
+                  void onOpenPath(startupDetail.executablePath ?? startupDetail.program!);
+                }}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-black/6 bg-white px-4 py-3 text-sm font-semibold text-[#111215] transition hover:bg-[#F4F4F8]"
+              >
+                <ExternalLink className="h-4 w-4" />
+                Open executable
+              </button>
+            ) : null}
+          </div>
+        </DetailCard>
+      ) : (
+        <div className="rounded-[24px] border border-black/6 bg-white px-4 py-6 text-sm leading-7 text-[#747785]">
+          Select a Homebrew service to inspect its state, plist path, and runtime details.
         </div>
       )}
     </div>
@@ -1382,8 +1619,10 @@ export function MainView({
                   ? 'md:grid-cols-[280px_minmax(260px,0.9fr)_minmax(280px,1fr)] 2xl:grid-cols-[minmax(260px,0.85fr)_minmax(320px,1.15fr)_minmax(320px,0.95fr)]'
                   : mode === 'cleanup'
                     ? 'md:grid-cols-[236px_minmax(320px,1.1fr)_minmax(280px,0.95fr)] 2xl:grid-cols-[240px_minmax(380px,1.2fr)_minmax(320px,0.9fr)]'
-                  : mode === 'startup' || mode === 'brew'
-                    ? 'md:grid-cols-[280px_minmax(0,1fr)] 2xl:grid-cols-[minmax(260px,0.85fr)_minmax(280px,0.7fr)_minmax(360px,1fr)]'
+                    : mode === 'startup'
+                      ? 'md:grid-cols-[280px_minmax(0,1fr)] 2xl:grid-cols-[minmax(260px,0.85fr)_minmax(280px,0.7fr)_minmax(360px,1fr)]'
+                      : mode === 'brew'
+                        ? 'md:grid-cols-[300px_minmax(0,1fr)] 2xl:grid-cols-[minmax(300px,0.72fr)_minmax(420px,1.28fr)]'
                     : 'md:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[minmax(300px,0.55fr)_minmax(0,1fr)]',
               )}
             >
@@ -1519,46 +1758,18 @@ export function MainView({
 
               {mode === 'brew' ? (
                 <>
-                  <Panel title="Brew Categories" subtitle="Live Homebrew inventory grouped by service surface." scroll>
-                    <ListColumn
-                      entries={[
-                        {
-                          id: brewEntry.id,
-                          title: brewEntry.title,
-                          subtitle: brewCategory?.detail ?? brewEntry.subtitle,
-                          state: brewCategory?.state ?? 'empty',
-                          count: brewCategory?.count ?? 0,
-                        },
-                      ]}
-                      activeId={brewEntry.id}
-                      onSelect={() => undefined}
-                      rightMeta={(entry) => (
-                        <div className="flex flex-col items-end gap-1">
-                          <span
-                            className={cn(
-                              'rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em]',
-                              startupStateTone(entry.state),
-                            )}
-                          >
-                            {startupStateLabel(entry.state)}
-                          </span>
-                          <span>{entry.count}</span>
-                        </div>
-                      )}
-                    />
-                  </Panel>
-                  <Panel title="Services" subtitle="Homebrew-managed services discovered from brew services list." scroll>
+                  <Panel title="Service List" subtitle={brewCategory?.detail ?? brewEntry.subtitle} scroll>
                     {brewListColumn}
                   </Panel>
-                  <div className="min-h-0 md:col-span-2 2xl:col-span-1">
+                  <div className="min-h-0">
                     <Panel
-                      title={startupDetail ? startupDetail.displayName : brewEntry.title}
-                      subtitle="Brew service details stay in the final workspace column."
+                      title={startupDetail ? startupDetail.displayName : 'Service Workspace'}
+                      subtitle="Review service status and actions without leaving the current workspace."
                       wide
                       scroll
                       header={false}
                     >
-                      <div className="p-4 lg:p-5">{startupDetailColumn}</div>
+                      <div className="p-4 lg:p-5">{brewDetailColumn}</div>
                     </Panel>
                   </div>
                 </>

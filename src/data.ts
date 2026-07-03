@@ -318,7 +318,7 @@ export const MOCK_STARTUP_SNAPSHOT: StartupSnapshot = {
       lastExitStatus: 0,
       scope: 'system',
       requiresAdmin: true,
-      supportsToggle: false,
+      supportsToggle: true,
       source: 'plist',
       domain: 'system',
       errorMessage: null,

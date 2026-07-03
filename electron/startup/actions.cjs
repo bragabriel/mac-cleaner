@@ -1,5 +1,6 @@
 const { execFile } = require('node:child_process');
 const { promisify } = require('node:util');
+const { runBrewServiceAction } = require('../homebrew/services.cjs');
 const { getStartupItemDetails } = require('./discovery.cjs');
 
 const execFileAsync = promisify(execFile);
@@ -62,6 +63,26 @@ async function reloadItem(item) {
 
 async function runStartupAction(itemId, action) {
   const item = await getStartupItemDetails(itemId);
+
+  if (item?.category === 'services') {
+    if (!item.supportsToggle) {
+      throw new Error(`The ${action} action is not supported for this brew service.`);
+    }
+
+    await runBrewServiceAction(item.label, action);
+    const nextItem = await getStartupItemDetails(itemId);
+
+    return {
+      action,
+      ok: true,
+      item: nextItem,
+      message:
+        action === 'reload'
+          ? `Restarted ${item.displayName}.`
+          : `${action === 'enable' ? 'Started' : 'Stopped'} ${item.displayName}.`,
+    };
+  }
+
   ensureUserToggleSupported(item, action);
 
   if (action === 'enable') {

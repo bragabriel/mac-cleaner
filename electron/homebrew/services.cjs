@@ -59,11 +59,28 @@ function parseServiceRow(line) {
     lastExitStatus: null,
     scope: user === 'root' ? 'system' : user && user !== 'none' ? 'user' : 'unknown',
     requiresAdmin: user === 'root',
-    supportsToggle: false,
+    supportsToggle: user !== 'root',
     source: 'service',
     domain: null,
     errorMessage: null,
   };
+}
+
+async function runBrewServiceAction(serviceName, action) {
+  const brewAction = {
+    enable: 'start',
+    disable: 'stop',
+    reload: 'restart',
+  }[action];
+
+  if (!brewAction) {
+    throw new Error(`Unsupported brew service action: ${action}`);
+  }
+
+  const result = await safeExec(['services', brewAction, serviceName]);
+  if (!result.ok) {
+    throw new Error(result.stderr || result.error?.message || `brew services ${brewAction} ${serviceName} failed.`);
+  }
 }
 
 async function listBrewServices() {
@@ -98,4 +115,6 @@ async function listBrewServices() {
 
 module.exports = {
   listBrewServices,
+  parseServiceRow,
+  runBrewServiceAction,
 };
