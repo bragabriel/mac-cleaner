@@ -984,7 +984,7 @@ export function MainView({
               <div className="mx-auto max-w-6xl">
                 <div className="rounded-[28px] border border-black/6 bg-[#FAFAFC] p-5 lg:p-6">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.26em] text-[#9EA2AE]">Home</p>
-                  <h2 className="mt-3 text-2xl font-semibold tracking-[-0.04em] text-[#111215] xl:text-3xl">
+                  <h2 className="mt-3 text-[22px] font-semibold tracking-[-0.04em] text-[#111215] xl:text-[28px]">
                     Choose what you want to clean or manage.
                   </h2>
                   <p className="mt-3 text-sm leading-7 text-[#747785]">
@@ -1017,10 +1017,10 @@ export function MainView({
                         }}
                         className="group rounded-[22px] border border-black/6 bg-white p-4 text-left transition hover:-translate-y-0.5 hover:border-black/12 hover:shadow-[0_24px_60px_rgba(17,18,21,0.08)] xl:rounded-[28px] xl:p-6"
                       >
-                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#F1EEFF] text-[#7263FF] xl:h-14 xl:w-14 xl:rounded-3xl">
-                          <Icon className="h-5 w-5 xl:h-7 xl:w-7" />
+                        <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#F1EEFF] text-[#7263FF] xl:h-12 xl:w-12 xl:rounded-3xl">
+                          <Icon className="h-[18px] w-[18px] xl:h-6 xl:w-6" />
                         </div>
-                        <h3 className="mt-3 text-lg font-semibold tracking-[-0.04em] text-[#111215] xl:mt-5 xl:text-2xl">{entry.title}</h3>
+                        <h3 className="mt-3 text-base font-semibold tracking-[-0.04em] text-[#111215] xl:mt-5 xl:text-xl">{entry.title}</h3>
                         <p className="mt-2 text-xs leading-5 text-[#747785] xl:mt-3 xl:text-sm xl:leading-7">{entry.subtitle}</p>
                         <p className="mt-3 text-xs font-semibold text-[#111215] xl:mt-5 xl:text-sm">Open section</p>
                       </button>
