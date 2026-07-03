@@ -1130,7 +1130,7 @@ export function MainView({
                           className="w-full bg-transparent text-sm text-[#111215] outline-none placeholder:text-[#9EA2AE]"
                         />
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex justify-center gap-2">
                         {(['all', 'updated', 'pending'] as const).map((filter) => {
                           const labels = {all: 'Todos', updated: 'Atualizados', pending: 'Pendentes'};
                           const isActive = brewFilter === filter;
