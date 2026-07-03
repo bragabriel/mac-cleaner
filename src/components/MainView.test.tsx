@@ -2,7 +2,7 @@ import {render, screen} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {describe, expect, it, vi} from 'vitest';
 import {MainView} from './MainView';
-import type {AppItem, PermissionSnapshot, ScanSummary, StartupSnapshot} from '../types';
+import type {AppItem, PermissionSnapshot, ScanSummary} from '../types';
 
 const app: AppItem = {
   id: 'app-1',
@@ -53,95 +53,6 @@ const permissionSnapshot: PermissionSnapshot = {
   ],
 };
 
-const startupSnapshot: StartupSnapshot = {
-  checkedAt: '2026-07-01T12:05:00.000Z',
-  globalError: null,
-  categories: [
-    {
-      id: 'launch-agents-user',
-      title: 'Launch Agents (User)',
-      subtitle: 'Per-user launchd jobs.',
-      state: 'available',
-      detail: 'One user agent is visible.',
-      count: 1,
-    },
-    {
-      id: 'launch-agents-system',
-      title: 'Launch Agents (System)',
-      subtitle: 'System-wide GUI agents.',
-      state: 'empty',
-      detail: 'No system launch agents were found.',
-      count: 0,
-    },
-    {
-      id: 'launch-daemons',
-      title: 'Launch Daemons',
-      subtitle: 'System launchd jobs.',
-      state: 'empty',
-      detail: 'No daemons were found.',
-      count: 0,
-    },
-    {
-      id: 'services',
-      title: 'Brew Services',
-      subtitle: 'Homebrew-managed services.',
-      state: 'available',
-      detail: 'One brew service is visible.',
-      count: 1,
-    },
-  ],
-  items: [
-    {
-      id: 'launch-agents-user:spotify',
-      category: 'launch-agents-user',
-      label: 'com.spotify.webhelper',
-      displayName: 'Spotify Helper',
-      description: 'Launches Spotify helper work in the user session.',
-      plistPath: '/Users/demo/Library/LaunchAgents/com.spotify.webhelper.plist',
-      executablePath: '/Applications/Spotify.app/Contents/MacOS/Spotify',
-      program: '/Applications/Spotify.app/Contents/MacOS/Spotify',
-      programArguments: ['/Applications/Spotify.app/Contents/MacOS/Spotify', '--background'],
-      runAtLoad: true,
-      keepAlive: false,
-      disabledInPlist: false,
-      enabled: true,
-      loaded: true,
-      pid: 412,
-      lastExitStatus: 0,
-      scope: 'user',
-      requiresAdmin: false,
-      supportsToggle: true,
-      source: 'plist',
-      domain: 'gui/501',
-      errorMessage: null,
-    },
-    {
-      id: 'services:postgresql@16',
-      category: 'services',
-      label: 'postgresql@16',
-      displayName: 'postgresql@16',
-      description: 'Homebrew service backed by the postgresql@16 formula.',
-      plistPath: '/Users/demo/Library/LaunchAgents/homebrew.mxcl.postgresql@16.plist',
-      executablePath: null,
-      program: null,
-      programArguments: [],
-      runAtLoad: true,
-      keepAlive: true,
-      disabledInPlist: false,
-      enabled: true,
-      loaded: true,
-      pid: null,
-      lastExitStatus: null,
-      scope: 'user',
-      requiresAdmin: false,
-      supportsToggle: false,
-      source: 'service',
-      domain: null,
-      errorMessage: null,
-    },
-  ],
-};
-
 const baseProps = {
   mode: 'uninstall' as const,
   cleanupMode: 'residues' as const,
@@ -159,13 +70,14 @@ const baseProps = {
   permissionSnapshot,
   permissionCheckLoading: false,
   permissionCheckError: null,
-  startupSnapshot,
-  startupLoading: false,
-  startupError: null,
-  startupItemDetail: startupSnapshot.items[0],
-  startupItemDetailLoading: false,
-  startupActionLoading: false,
-  startupActionMessage: null,
+  brewPackages: [],
+  brewOutdated: [],
+  brewLoading: false,
+  brewError: null,
+  brewUpgradeLoading: null,
+  brewUpgradeMessage: null,
+  onRefreshBrewPackages: vi.fn(),
+  onBrewUpgrade: vi.fn(),
   onModeChange: vi.fn(),
   onCleanupModeChange: vi.fn(),
   onSelectApp: vi.fn(),
@@ -175,9 +87,6 @@ const baseProps = {
   onToggleAll: vi.fn(),
   onOpenSystemSettings: vi.fn(),
   onRefreshPermissionSnapshot: vi.fn(),
-  onRefreshStartupSnapshot: vi.fn(),
-  onSelectStartupItem: vi.fn(),
-  onRunStartupAction: vi.fn(),
   onCopyPath: vi.fn(),
   onRevealPath: vi.fn(),
   onOpenPath: vi.fn(),
@@ -219,35 +128,19 @@ describe('MainView', () => {
     expect(screen.queryByText('Background Items')).not.toBeInTheDocument();
   });
 
-  it('renders brew services as a separate workspace', () => {
-    render(<MainView {...baseProps} mode="brew" />);
+  it('renders brew packages as a separate workspace', () => {
+    render(<MainView {...baseProps} mode="brew" brewPackages={[
+      { name: 'postgresql@16', outdated: false },
+    ]} />);
 
-    expect(screen.getAllByText('Brew Services').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Brew Packages').length).toBeGreaterThan(0);
     expect(screen.getAllByText('postgresql@16').length).toBeGreaterThan(0);
-    expect(screen.getByText('Homebrew service backed by the postgresql@16 formula.')).toBeInTheDocument();
   });
 
-  it('keeps the brew empty state in one place and avoids a broken selection prompt', () => {
-    const emptyBrewSnapshot: StartupSnapshot = {
-      ...startupSnapshot,
-      categories: startupSnapshot.categories.map((category) =>
-        category.id === 'services'
-          ? {
-              ...category,
-              state: 'empty',
-              detail: 'Homebrew is installed, but no brew services are currently registered.',
-              count: 0,
-            }
-          : category,
-      ),
-      items: startupSnapshot.items.filter((item) => item.category !== 'services'),
-    };
+  it('shows the brew empty state when no packages are installed', () => {
+    render(<MainView {...baseProps} mode="brew" brewPackages={[]} brewOutdated={[]} />);
 
-    render(<MainView {...baseProps} mode="brew" startupSnapshot={emptyBrewSnapshot} startupItemDetail={null} />);
-
-    expect(screen.getByText('Homebrew services discovered from brew services list.')).toBeInTheDocument();
-    expect(screen.getByText('No brew services to list.')).toBeInTheDocument();
-    expect(screen.getByText('Homebrew is installed, but no brew services are currently registered.')).toBeInTheDocument();
+    expect(screen.getByText('No brew packages installed.')).toBeInTheDocument();
     expect(screen.queryByText('Select a Homebrew service to inspect its state, plist path, and runtime details.')).not.toBeInTheDocument();
   });
 
@@ -257,7 +150,7 @@ describe('MainView', () => {
     const cards = screen.getAllByText('Open section').map((node) => node.closest('button')?.textContent ?? '');
 
     expect(cards).toHaveLength(5);
-    expect(cards[3]).toContain('Brew Services');
+    expect(cards[3]).toContain('Brew Packages');
     expect(cards[4]).toContain('Settings');
   });
 

@@ -5,18 +5,16 @@ import {
   MOCK_APPS,
   MOCK_ORPHAN_SUMMARY,
   MOCK_PERMISSION_SNAPSHOT,
-  MOCK_STARTUP_SNAPSHOT,
   MOCK_SYSTEM_SUMMARY,
   MOCK_UNINSTALL_SUMMARY,
 } from './data';
 import type {
   AppItem,
+  BrewOutdated,
+  BrewPackage,
   CleanupMode,
   PermissionSettingTarget,
   PermissionSnapshot,
-  StartupAction,
-  StartupItem,
-  StartupSnapshot,
   ProductMode,
   RemovalFailure,
   ScanItem,
@@ -65,13 +63,12 @@ export default function App() {
   const [permissionCheckLoading, setPermissionCheckLoading] = useState(false);
   const [permissionCheckError, setPermissionCheckError] = useState<string | null>(null);
   const [permissionModalOpen, setPermissionModalOpen] = useState(false);
-  const [startupSnapshot, setStartupSnapshot] = useState<StartupSnapshot | null>(null);
-  const [startupLoading, setStartupLoading] = useState(false);
-  const [startupError, setStartupError] = useState<string | null>(null);
-  const [startupItemDetail, setStartupItemDetail] = useState<StartupItem | null>(null);
-  const [startupItemDetailLoading, setStartupItemDetailLoading] = useState(false);
-  const [startupActionLoading, setStartupActionLoading] = useState(false);
-  const [startupActionMessage, setStartupActionMessage] = useState<string | null>(null);
+  const [brewPackages, setBrewPackages] = useState<BrewPackage[]>([]);
+  const [brewOutdated, setBrewOutdated] = useState<BrewOutdated[]>([]);
+  const [brewLoading, setBrewLoading] = useState(false);
+  const [brewError, setBrewError] = useState<string | null>(null);
+  const [brewUpgradeLoading, setBrewUpgradeLoading] = useState<string | null>(null);
+  const [brewUpgradeMessage, setBrewUpgradeMessage] = useState<string | null>(null);
   const progressIntervalRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -142,114 +139,53 @@ export default function App() {
     void refreshPermissionSnapshot();
   }, [mode]);
 
-  const refreshStartupSnapshot = async () => {
-    setStartupLoading(true);
-    setStartupError(null);
-
-    try {
-      const nextSnapshot = window.macCleaner?.listStartupItems
-        ? await window.macCleaner.listStartupItems()
-        : MOCK_STARTUP_SNAPSHOT;
-      setStartupSnapshot(nextSnapshot);
-      setStartupItemDetail(null);
-    } catch (error) {
-      setStartupSnapshot(MOCK_STARTUP_SNAPSHOT);
-      setStartupError(error instanceof Error ? error.message : 'Startup scan failed.');
-      setStartupItemDetail(null);
-    } finally {
-      setStartupLoading(false);
-    }
-  };
-
-  const loadStartupItemDetail = async (itemId: string | null) => {
-    if (!itemId) {
-      setStartupItemDetail(null);
-      return;
-    }
-
-    setStartupError(null);
-    setStartupItemDetailLoading(true);
-
-    try {
-      const nextDetail = window.macCleaner?.getStartupItemDetails
-        ? await window.macCleaner.getStartupItemDetails(itemId)
-        : MOCK_STARTUP_SNAPSHOT.items.find((item) => item.id === itemId) ?? null;
-      setStartupItemDetail(nextDetail);
-    } catch (error) {
-      setStartupItemDetail(null);
-      setStartupError(error instanceof Error ? error.message : 'Startup detail lookup failed.');
-    } finally {
-      setStartupItemDetailLoading(false);
-    }
-  };
-
   useEffect(() => {
     if (mode !== 'brew') {
       return;
     }
 
-    void refreshStartupSnapshot();
+    void refreshBrewPackages();
   }, [mode]);
 
-  const runStartupAction = async (itemId: string, action: StartupAction) => {
-    setStartupActionLoading(true);
-    setStartupActionMessage(null);
-    setStartupError(null);
-
+  const refreshBrewPackages = async () => {
+    setBrewLoading(true);
+    setBrewError(null);
     try {
-      if (window.macCleaner?.runStartupAction) {
-        const result = await window.macCleaner.runStartupAction(itemId, action);
-        setStartupActionMessage(result.message);
-        await refreshStartupSnapshot();
-        await loadStartupItemDetail(result.item?.id ?? itemId);
+      const [packagesRes, outdatedRes] = await Promise.all([
+        window.macCleaner?.listBrewPackages?.() ?? {ok: false, packages: [] as string[], message: 'Brew not available'},
+        window.macCleaner?.listBrewOutdated?.() ?? {ok: false, packages: [], message: 'Brew not available'},
+      ]);
+      if (!packagesRes.ok) {
+        setBrewError(packagesRes.message);
+        setBrewPackages([]);
+        setBrewOutdated([]);
       } else {
-        setStartupSnapshot((current) => {
-          const baseSnapshot = current ?? MOCK_STARTUP_SNAPSHOT;
-          const nextItems = baseSnapshot.items.map((item) => {
-            if (item.id !== itemId) {
-              return item;
-            }
-
-            if (action === 'reload') {
-              return {
-                ...item,
-                loaded: true,
-                lastExitStatus: 0,
-              };
-            }
-
-            const nextEnabled = action === 'enable';
-            return {
-              ...item,
-              enabled: nextEnabled,
-              disabledInPlist: !nextEnabled,
-              loaded: nextEnabled,
-              lastExitStatus: 0,
-            };
-          });
-
-          const nextCategories = baseSnapshot.categories.map((category) => ({
-            ...category,
-            count: nextItems.filter((item) => item.category === category.id).length,
-          }));
-
-          const nextSnapshot = {
-            ...baseSnapshot,
-            checkedAt: new Date().toISOString(),
-            items: nextItems,
-            categories: nextCategories,
-          };
-
-          setStartupItemDetail(nextItems.find((item) => item.id === itemId) ?? null);
-          return nextSnapshot;
-        });
-
-        setStartupActionMessage(`${action} completed in preview mode.`);
+        const outdatedNames = new Set(outdatedRes.packages.map((o) => o.name));
+        setBrewPackages(packagesRes.packages.map((name) => ({name, outdated: outdatedNames.has(name)})));
+        setBrewOutdated(outdatedRes.packages);
       }
     } catch (error) {
-      setStartupError(error instanceof Error ? error.message : 'Startup action failed.');
+      setBrewError(error instanceof Error ? error.message : 'Failed to load brew packages.');
+      setBrewPackages([]);
+      setBrewOutdated([]);
     } finally {
-      setStartupActionLoading(false);
+      setBrewLoading(false);
+    }
+  };
+
+  const handleBrewUpgrade = async (name: string) => {
+    setBrewUpgradeLoading(name);
+    setBrewUpgradeMessage(null);
+    try {
+      const result = await window.macCleaner?.upgradeBrewPackage?.(name) ?? {ok: false, message: 'Brew not available'};
+      setBrewUpgradeMessage(result.message);
+      if (result.ok) {
+        await refreshBrewPackages();
+      }
+    } catch (error) {
+      setBrewUpgradeMessage(error instanceof Error ? error.message : 'Upgrade failed.');
+    } finally {
+      setBrewUpgradeLoading(null);
     }
   };
 
@@ -477,18 +413,8 @@ export default function App() {
         permissionSnapshot={permissionSnapshot}
         permissionCheckLoading={permissionCheckLoading}
         permissionCheckError={permissionCheckError}
-        startupSnapshot={startupSnapshot}
-        startupLoading={startupLoading}
-        startupError={startupError}
-        startupItemDetail={startupItemDetail}
-        startupItemDetailLoading={startupItemDetailLoading}
-        startupActionLoading={startupActionLoading}
-        startupActionMessage={startupActionMessage}
         onOpenSystemSettings={(target: PermissionSettingTarget) => window.macCleaner?.openSystemSettings?.(target)}
         onRefreshPermissionSnapshot={refreshPermissionSnapshot}
-        onRefreshStartupSnapshot={refreshStartupSnapshot}
-        onSelectStartupItem={loadStartupItemDetail}
-        onRunStartupAction={runStartupAction}
         onCopyPath={handleCopyPath}
         onRevealPath={handleRevealPath}
         onOpenPath={handleOpenPath}
@@ -503,6 +429,14 @@ export default function App() {
         permissionModalOpen={permissionModalOpen}
         onPermissionModalClose={() => setPermissionModalOpen(false)}
         onGoToSettings={handleGoToSettings}
+        brewPackages={brewPackages}
+        brewOutdated={brewOutdated}
+        brewLoading={brewLoading}
+        brewError={brewError}
+        brewUpgradeLoading={brewUpgradeLoading}
+        brewUpgradeMessage={brewUpgradeMessage}
+        onRefreshBrewPackages={refreshBrewPackages}
+        onBrewUpgrade={handleBrewUpgrade}
       />
     </div>
   );

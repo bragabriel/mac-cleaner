@@ -4,9 +4,8 @@ const { execFile } = require('node:child_process');
 const { promisify } = require('node:util');
 const { app, BrowserWindow, ipcMain, nativeImage, shell } = require('electron');
 const { listInstalledApps, removeItems, scanAppResidues, scanOrphanResidues, scanSystemJunk } = require('./service.cjs');
+const { listInstalledPackages, listOutdatedPackages, upgradePackage } = require('./homebrew/services.cjs');
 const { getPermissionSnapshot, openSystemSettingsTarget } = require('./permissions/checks.cjs');
-const { runStartupAction } = require('./startup/actions.cjs');
-const { getStartupItemDetails, getStartupSnapshot } = require('./startup/discovery.cjs');
 
 const execFileAsync = promisify(execFile);
 
@@ -134,9 +133,9 @@ app.whenReady().then(() => {
   ipcMain.handle('item:open', async (_event, targetPath) => shell.openPath(targetPath));
   ipcMain.handle('permissions:get-snapshot', async () => getPermissionSnapshot());
   ipcMain.handle('permissions:open-settings', async (_event, target) => openSystemSettingsTarget(target));
-  ipcMain.handle('startup:list', async () => getStartupSnapshot());
-  ipcMain.handle('startup:get-item-details', async (_event, itemId) => getStartupItemDetails(itemId));
-  ipcMain.handle('startup:run-action', async (_event, itemId, action) => runStartupAction(itemId, action));
+  ipcMain.handle('brew:list-installed', async () => listInstalledPackages());
+  ipcMain.handle('brew:outdated', async () => listOutdatedPackages());
+  ipcMain.handle('brew:upgrade', async (_event, name) => upgradePackage(name));
 
   createWindow();
 
