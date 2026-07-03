@@ -1620,7 +1620,7 @@ export function MainView({
                   : mode === 'cleanup'
                     ? 'md:grid-cols-[236px_minmax(320px,1.1fr)_minmax(280px,0.95fr)] 2xl:grid-cols-[240px_minmax(380px,1.2fr)_minmax(320px,0.9fr)]'
                     : mode === 'startup'
-                      ? 'md:grid-cols-[280px_minmax(0,1fr)] 2xl:grid-cols-[minmax(260px,0.85fr)_minmax(280px,0.7fr)_minmax(360px,1fr)]'
+                      ? 'md:grid-cols-[280px_minmax(260px,0.8fr)_minmax(320px,1fr)] 2xl:grid-cols-[minmax(260px,0.85fr)_minmax(280px,0.7fr)_minmax(360px,1fr)]'
                       : mode === 'brew'
                         ? 'md:grid-cols-[300px_minmax(0,1fr)] 2xl:grid-cols-[minmax(300px,0.72fr)_minmax(420px,1.28fr)]'
                     : 'md:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[minmax(300px,0.55fr)_minmax(0,1fr)]',
@@ -1717,6 +1717,7 @@ export function MainView({
                       entries={startupCategories}
                       activeId={selectedStartupId}
                       onSelect={(entry) => setSelectedStartupId(entry.id)}
+                      wrapText
                       rightMeta={(entry) => (
                         <div className="flex flex-col items-end gap-1">
                           <span
@@ -1741,7 +1742,7 @@ export function MainView({
                     {selectedStartup.id === 'login-items' ? loginItemsColumn : startupListColumn}
                   </Panel>
                   {selectedStartup.id !== 'login-items' ? (
-                    <div className="min-h-0 md:col-span-2 2xl:col-span-1">
+                    <div className="min-h-0">
                       <Panel
                         title={startupDetail ? startupDetail.displayName : selectedStartup.title}
                         subtitle="Startup details stay in the final workspace column."
