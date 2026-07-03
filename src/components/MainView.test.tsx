@@ -243,6 +243,14 @@ describe('MainView', () => {
     expect(screen.getAllByText('Reveal plist').length).toBeGreaterThan(0);
   });
 
+  it('keeps login items in the standard startup column flow', () => {
+    render(<MainView {...baseProps} mode="startup" />);
+
+    expect(screen.getByText('macOS requires manual review for apps and background items that launch at sign-in.')).toBeInTheDocument();
+    expect(screen.getByText('Open Login Items')).toBeInTheDocument();
+    expect(screen.queryByText('Select a startup item to inspect its launch metadata, executable path, and launchctl state.')).not.toBeInTheDocument();
+  });
+
   it('renders brew services as a separate workspace', () => {
     render(<MainView {...baseProps} mode="brew" />);
 

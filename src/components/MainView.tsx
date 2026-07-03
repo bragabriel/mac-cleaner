@@ -798,6 +798,45 @@ export function MainView({
       : null;
   const startupDetail = startupItemDetailForMode ?? (mode === 'brew' ? selectedBrewItem : selectedStartupItem);
 
+  const loginItemsColumn = (
+    <div className="p-4 lg:p-5">
+      <DetailCard
+        icon={<ShieldAlert className="h-6 w-6" />}
+        title="Login Items"
+        subtitle="macOS requires manual review for apps and background items that launch at sign-in."
+      >
+        <div className="space-y-4">
+          <div className="rounded-[24px] border border-black/6 bg-white px-4 py-4 text-sm leading-7 text-[#747785]">
+            Open Login Items in System Settings to verify which apps still relaunch after sign-in and which background
+            items can recreate support files after cleanup.
+          </div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+            <button
+              type="button"
+              onClick={() => {
+                void onOpenSystemSettings('login-items');
+              }}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#111215] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#252733]"
+            >
+              <ExternalLink className="h-4 w-4" />
+              Open Login Items
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                void onRefreshStartupSnapshot();
+              }}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-black/6 bg-white px-4 py-3 text-sm font-semibold text-[#111215] transition hover:bg-[#F4F4F8]"
+            >
+              {startupLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+              Retry inventory
+            </button>
+          </div>
+        </div>
+      </DetailCard>
+    </div>
+  );
+
   const startupDetailColumn = (
     <div className="space-y-4">
       {startupError ? (
@@ -811,42 +850,7 @@ export function MainView({
         </div>
       ) : null}
 
-      {mode === 'startup' && selectedStartup.id === 'login-items' ? (
-        <DetailCard
-          icon={<ShieldAlert className="h-6 w-6" />}
-          title="Login Items require manual review"
-          subtitle="macOS does not provide a stable third-party API for a full Login Items inventory."
-        >
-          <div className="space-y-4">
-            <div className="rounded-[24px] border border-black/6 bg-white px-4 py-4 text-sm leading-7 text-[#747785]">
-              Open the Login Items section in System Settings to verify which apps still relaunch after sign-in and
-              which background items can recreate support files after cleanup.
-            </div>
-            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-              <button
-                type="button"
-                onClick={() => {
-                  void onOpenSystemSettings('login-items');
-                }}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#111215] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#252733]"
-              >
-                <ExternalLink className="h-4 w-4" />
-                Open Login Items
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  void onRefreshStartupSnapshot();
-                }}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-black/6 bg-white px-4 py-3 text-sm font-semibold text-[#111215] transition hover:bg-[#F4F4F8]"
-              >
-                {startupLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                Retry inventory
-              </button>
-            </div>
-          </div>
-        </DetailCard>
-      ) : startupItemDetailLoading ? (
+      {startupItemDetailLoading ? (
         <div className="rounded-[24px] border border-black/6 bg-white px-4 py-6 text-sm text-[#747785]">
           <div className="inline-flex items-center gap-2">
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -1492,21 +1496,24 @@ export function MainView({
                   <Panel
                     title={selectedStartup.title}
                     subtitle={startupCategories.find((entry) => entry.id === selectedStartup.id)?.detail ?? selectedStartup.subtitle}
-                    scroll
+                    scroll={selectedStartup.id !== 'login-items'}
+                    header={selectedStartup.id !== 'login-items'}
                   >
-                    {startupListColumn}
+                    {selectedStartup.id === 'login-items' ? loginItemsColumn : startupListColumn}
                   </Panel>
-                  <div className="min-h-0 md:col-span-2 2xl:col-span-1">
-                    <Panel
-                      title={startupDetail ? startupDetail.displayName : selectedStartup.title}
-                      subtitle="Startup details stay in the final workspace column."
-                      wide
-                      scroll
-                      header={false}
-                    >
-                      <div className="p-4 lg:p-5">{startupDetailColumn}</div>
-                    </Panel>
-                  </div>
+                  {selectedStartup.id !== 'login-items' ? (
+                    <div className="min-h-0 md:col-span-2 2xl:col-span-1">
+                      <Panel
+                        title={startupDetail ? startupDetail.displayName : selectedStartup.title}
+                        subtitle="Startup details stay in the final workspace column."
+                        wide
+                        scroll
+                        header={false}
+                      >
+                        <div className="p-4 lg:p-5">{startupDetailColumn}</div>
+                      </Panel>
+                    </div>
+                  ) : null}
                 </>
               ) : null}
 
