@@ -647,6 +647,13 @@ export function MainView({
     null;
   const brewCategory = startupSnapshot?.categories.find((category) => category.id === brewEntry.id);
   const filteredBrewItems = (startupSnapshot?.items ?? []).filter((item) => item.category === brewEntry.id);
+  const brewEmptyStateMessage = brewCategory?.detail ?? 'No brew services are available right now.';
+  const brewListEmptyMessage =
+    brewCategory?.state === 'error'
+      ? 'Brew services could not be loaded.'
+      : brewCategory?.state === 'empty'
+        ? 'No brew services to list.'
+        : 'No brew services are available right now.';
   const selectedBrewItem =
     filteredBrewItems.find((item) => item.id === selectedBrewItemId) ??
     filteredBrewItems[0] ??
@@ -820,9 +827,7 @@ export function MainView({
           );
         })
       ) : (
-        <div className="px-5 py-8 text-sm text-[#747785]">
-          {brewCategory?.detail ?? 'No brew services are available right now.'}
-        </div>
+        <div className="px-5 py-8 text-sm text-[#747785]">{brewListEmptyMessage}</div>
       )}
     </div>
   );
@@ -1276,7 +1281,9 @@ export function MainView({
         </DetailCard>
       ) : (
         <div className="rounded-[24px] border border-black/6 bg-white px-4 py-6 text-sm leading-7 text-[#747785]">
-          Select a Homebrew service to inspect its state, plist path, and runtime details.
+          {filteredBrewItems.length
+            ? 'Select a Homebrew service to inspect its state, plist path, and runtime details.'
+            : brewEmptyStateMessage}
         </div>
       )}
     </div>
@@ -1759,7 +1766,7 @@ export function MainView({
 
               {mode === 'brew' ? (
                 <>
-                  <Panel title="Service List" subtitle={brewCategory?.detail ?? brewEntry.subtitle} scroll>
+                  <Panel title="Service List" subtitle={brewEntry.subtitle} scroll>
                     {brewListColumn}
                   </Panel>
                   <div className="min-h-0">

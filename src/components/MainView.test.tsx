@@ -259,6 +259,30 @@ describe('MainView', () => {
     expect(screen.getByText('Homebrew service backed by the postgresql@16 formula.')).toBeInTheDocument();
   });
 
+  it('keeps the brew empty state in one place and avoids a broken selection prompt', () => {
+    const emptyBrewSnapshot: StartupSnapshot = {
+      ...startupSnapshot,
+      categories: startupSnapshot.categories.map((category) =>
+        category.id === 'services'
+          ? {
+              ...category,
+              state: 'empty',
+              detail: 'Homebrew is installed, but no brew services are currently registered.',
+              count: 0,
+            }
+          : category,
+      ),
+      items: startupSnapshot.items.filter((item) => item.category !== 'services'),
+    };
+
+    render(<MainView {...baseProps} mode="brew" startupSnapshot={emptyBrewSnapshot} startupItemDetail={null} />);
+
+    expect(screen.getByText('Homebrew services discovered from brew services list.')).toBeInTheDocument();
+    expect(screen.getByText('No brew services to list.')).toBeInTheDocument();
+    expect(screen.getByText('Homebrew is installed, but no brew services are currently registered.')).toBeInTheDocument();
+    expect(screen.queryByText('Select a Homebrew service to inspect its state, plist path, and runtime details.')).not.toBeInTheDocument();
+  });
+
   it('keeps settings last on the home grid', () => {
     render(<MainView {...baseProps} mode="home" summary={null} />);
 
