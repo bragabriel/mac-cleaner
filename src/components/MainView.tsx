@@ -866,7 +866,16 @@ export function MainView({
       >
         <div className="grid items-start gap-4">
           <div className="rounded-2xl bg-white px-4 py-4">
-            <p className="text-[11px] uppercase tracking-[0.18em] text-[#9EA2AE]">Roots inspected</p>
+            <div className="flex items-center justify-between">
+              <p className="text-[11px] uppercase tracking-[0.18em] text-[#9EA2AE]">Roots inspected</p>
+              <button
+                type="button"
+                onClick={() => setSelectedCleanupRoots(activeCleanupRoots.length === selectedCleanup.roots.length ? [] : [...selectedCleanup.roots])}
+                className="text-[11px] font-medium text-[#7263FF] hover:text-[#5B4BD4] transition-colors"
+              >
+                {activeCleanupRoots.length === selectedCleanup.roots.length ? 'Desmarcar todos' : 'Marcar todos'}
+              </button>
+            </div>
             <div className="mt-3 grid max-h-[280px] gap-2 overflow-y-auto pr-1 2xl:max-h-none 2xl:grid-cols-2 2xl:overflow-visible 2xl:pr-0">
               {selectedCleanup.roots.map((root) => (
                 <label
