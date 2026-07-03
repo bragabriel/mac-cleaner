@@ -151,11 +151,15 @@ describe('MainView', () => {
   it('keeps settings last on the home grid', () => {
     render(<MainView {...baseProps} mode="home" summary={null} />);
 
-    const cards = screen.getAllByText('Open section').map((node) => node.closest('button')?.textContent ?? '');
+    const homeTitles = ['Uninstall Apps', 'App Residues', 'System Junk', 'Brew Packages', 'Settings'];
+    const homeCards = homeTitles.map((t) => {
+      const els = screen.getAllByText(t);
+      return els.find((el) => el.closest('button'))?.closest('button')!;
+    });
 
-    expect(cards).toHaveLength(5);
-    expect(cards[3]).toContain('Brew Packages');
-    expect(cards[4]).toContain('Settings');
+    expect(homeCards).toHaveLength(5);
+    expect(homeCards[3].textContent).toContain('Brew Packages');
+    expect(homeCards[4].textContent).toContain('Settings');
   });
 
   it('keeps cleanup feature screens scoped to the selected mode', () => {

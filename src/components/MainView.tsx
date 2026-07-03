@@ -984,10 +984,10 @@ export function MainView({
               <div className="mx-auto max-w-6xl">
                 <div className="rounded-[28px] border border-black/6 bg-[#FAFAFC] p-5 lg:p-6">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.26em] text-[#9EA2AE]">Home</p>
-                  <h2 className="mt-3 text-[22px] font-semibold tracking-[-0.04em] text-[#111215] xl:text-[28px]">
+                  <h2 className="mt-3 text-[21px] font-semibold tracking-[-0.04em] text-[#111215] xl:text-[27px]">
                     Choose what you want to clean or manage.
                   </h2>
-                  <p className="mt-3 text-sm leading-7 text-[#747785]">
+                  <p className="mt-3 text-[15px] leading-7 text-[#747785]">
                     Before starting, open{' '}
                     <button
                       type="button"
@@ -1022,7 +1022,6 @@ export function MainView({
                         </div>
                         <h3 className="mt-3 text-base font-semibold tracking-[-0.04em] text-[#111215] xl:mt-5 xl:text-xl">{entry.title}</h3>
                         <p className="mt-2 text-xs leading-5 text-[#747785] xl:mt-3 xl:text-sm xl:leading-7">{entry.subtitle}</p>
-                        <p className="mt-3 text-xs font-semibold text-[#111215] xl:mt-5 xl:text-sm">Open section</p>
                       </button>
                     );
                   })}
