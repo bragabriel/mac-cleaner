@@ -196,14 +196,9 @@ export const MOCK_PERMISSION_SNAPSHOT: PermissionSnapshot = {
       detail: 'Accessibility is available, so the app can guide focus back to cleanup-related system prompts.',
     },
     {
-      target: 'privacy-automation',
-      status: 'unknown',
-      detail: 'macOS does not expose a stable API for Automation approval state. Verify it manually if follow-up flows stall.',
-    },
-    {
       target: 'login-items',
       status: 'needs-manual-review',
-      detail: 'Background Items should be reviewed manually after each cleanup because macOS may re-enable them independently.',
+      detail: 'Background Items approval must be reviewed in System Settings because macOS does not expose a stable granted/not granted status here.',
     },
   ],
 };

@@ -74,7 +74,6 @@ export type PermissionSettingTarget =
   | 'privacy'
   | 'privacy-full-disk-access'
   | 'privacy-accessibility'
-  | 'privacy-automation'
   | 'login-items';
 
 export type PermissionPriority = 'required' | 'recommended' | 'optional';

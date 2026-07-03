@@ -225,16 +225,6 @@ const settingsEntries: Array<{
     actionLabel: 'Open Accessibility',
   },
   {
-    id: 'privacy-automation',
-    title: 'Automation',
-    subtitle: 'Needed when cleanup workflows must hand off to other apps or system utilities after review.',
-    priority: 'optional',
-    description:
-      'Automation consent is granted per target app. Keep it available only if your workflow depends on scripted follow-up tasks.',
-    impact: 'If missing, external follow-up actions may pause on the macOS consent prompt and need manual intervention.',
-    actionLabel: 'Open Automation',
-  },
-  {
     id: 'login-items',
     title: 'Background Items',
     subtitle: 'Review launch helpers and login items that can recreate residue after a cleanup.',
@@ -1412,7 +1402,7 @@ export function MainView({
                     scroll
                   >
                     <div className="flex h-full flex-col">
-                      <div className="min-h-0 flex-1 overflow-y-auto">
+                      <div className="shrink-0">
                         <ListColumn
                           entries={settingsWithStatus}
                           activeId={selectedSettingId}
@@ -1420,7 +1410,7 @@ export function MainView({
                           rightMeta={(entry) => permissionStatusLabel(entry.status)}
                         />
                       </div>
-                      <div className="shrink-0 px-5 py-4">
+                      <div className="flex min-h-0 flex-1 items-center px-5 py-4">
                         <div className="rounded-[18px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-800">
                           If macOS does not support a deep link for the exact page, the app falls back to the parent
                           settings section so you still land close to the right control.

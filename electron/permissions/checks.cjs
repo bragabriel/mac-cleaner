@@ -1,10 +1,12 @@
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 const { dialog, shell, systemPreferences } = require('electron');
 
 const KNOWN_TARGETS = new Set([
   'privacy',
   'privacy-full-disk-access',
   'privacy-accessibility',
-  'privacy-automation',
   'login-items',
 ]);
 
@@ -12,7 +14,6 @@ const TARGET_TO_URL = {
   'privacy': 'x-apple.systempreferences:com.apple.preference.security?Privacy',
   'privacy-full-disk-access': 'x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles',
   'privacy-accessibility': 'x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility',
-  'privacy-automation': 'x-apple.systempreferences:com.apple.preference.security?Privacy_Automation',
   'login-items': 'x-apple.systempreferences:com.apple.LoginItems-Settings.extension',
 };
 
@@ -20,9 +21,14 @@ const PERMISSION_LABELS = {
   'privacy': 'System Privacy',
   'privacy-full-disk-access': 'Full Disk Access',
   'privacy-accessibility': 'Accessibility',
-  'privacy-automation': 'Automation',
   'login-items': 'Login Items',
 };
+
+const FULL_DISK_ACCESS_PROBES = [
+  ['Library', 'Mail'],
+  ['Library', 'Messages'],
+  ['Library', 'Safari'],
+];
 
 function normalizeTarget(target) {
   if (!KNOWN_TARGETS.has(target)) {
@@ -33,7 +39,7 @@ function normalizeTarget(target) {
 }
 
 async function promptAccessibilityPermission() {
-  if (typeof systemPreferences.isTrustedAccessibilityClient !== 'function') {
+  if (typeof systemPreferences?.isTrustedAccessibilityClient !== 'function') {
     return false;
   }
 
@@ -46,7 +52,7 @@ async function promptFullDiskAccess() {
     type: 'info',
     title: 'Full Disk Access Required',
     message: 'Mac Cleaner needs Full Disk Access to scan and clean protected system files.',
-    detail: 'Click "Open Settings" to grant this permission in System Settings. You may need to add Mac Cleaner manually to the list.',
+    detail: 'Click "Open Settings" to grant this permission in System Settings.',
     buttons: ['Open Settings', 'Cancel'],
     defaultId: 0,
     cancelId: 1,
@@ -103,7 +109,7 @@ async function openSystemSettingsTarget(target) {
 }
 
 function buildAccessibilityStatus() {
-  if (typeof systemPreferences.isTrustedAccessibilityClient !== 'function') {
+  if (typeof systemPreferences?.isTrustedAccessibilityClient !== 'function') {
     return {
       target: 'privacy-accessibility',
       status: 'unknown',
@@ -122,31 +128,58 @@ function buildAccessibilityStatus() {
   };
 }
 
+function buildFullDiskAccessStatus(probePaths = FULL_DISK_ACCESS_PROBES.map((segments) => path.join(os.homedir(), ...segments))) {
+  let sawProbe = false;
+
+  for (const probePath of probePaths) {
+    try {
+      fs.readdirSync(probePath);
+      return {
+        target: 'privacy-full-disk-access',
+        status: 'granted',
+        detail: 'Full Disk Access is currently available to the app.',
+      };
+    } catch (error) {
+      if (error && (error.code === 'EACCES' || error.code === 'EPERM')) {
+        return {
+          target: 'privacy-full-disk-access',
+          status: 'not-granted',
+          detail: 'Full Disk Access is not granted yet. If you just granted it to Electron in dev, restart npm run dev:desktop and check again.',
+        };
+      }
+
+      if (error && error.code !== 'ENOENT') {
+        sawProbe = true;
+      }
+    }
+  }
+
+  return {
+    target: 'privacy-full-disk-access',
+    status: 'unknown',
+    detail: sawProbe
+      ? 'Full Disk Access could not be confirmed from the protected folder check.'
+      : 'No protected Library folders were available for a live Full Disk Access check. Verify this permission manually.',
+  };
+}
+
 function getPermissionSnapshot() {
   return {
     checkedAt: new Date().toISOString(),
     permissions: [
-      {
-        target: 'privacy-full-disk-access',
-        status: 'unknown',
-        detail: 'macOS does not expose a reliable Full Disk Access API for Electron. Verify this permission manually.',
-      },
+      buildFullDiskAccessStatus(),
       buildAccessibilityStatus(),
       {
-        target: 'privacy-automation',
-        status: 'unknown',
-        detail: 'Automation approval is managed per target app and is not exposed reliably to Electron.',
-      },
-      {
         target: 'login-items',
-        status: 'unknown',
-        detail: 'Background Items approval must be reviewed in System Settings because macOS does not expose a stable status API here.',
+        status: 'needs-manual-review',
+        detail: 'Background Items approval must be reviewed in System Settings because macOS does not expose a stable granted/not granted status here.',
       },
     ],
   };
 }
 
 module.exports = {
+  buildFullDiskAccessStatus,
   getPermissionSnapshot,
   openSystemSettingsTarget,
 };

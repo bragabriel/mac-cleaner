@@ -9,7 +9,7 @@
     "dev:desktop": "node scripts/dev-electron.mjs",
     "build": "vite build",
     "build:desktop": "npm run build",
-    "dist:mac": "npm run build && electron-builder --mac zip --config.mac.identity=null",
+    "dist:mac": "npm run build && electron-builder --mac dmg --config.mac.identity=null",
     "start:desktop": "electron .",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
@@ -63,7 +63,7 @@
     "asar": true,
     "mac": {
       "target": [
-        "zip"
+        "dmg"
       ],
       "category": "public.app-category.utilities",
       "identity": null

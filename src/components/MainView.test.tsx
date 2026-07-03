@@ -51,11 +51,6 @@ const permissionSnapshot: PermissionSnapshot = {
       detail: 'Accessibility access is available.',
     },
     {
-      target: 'privacy-automation',
-      status: 'unknown',
-      detail: 'Automation must be verified manually.',
-    },
-    {
       target: 'login-items',
       status: 'needs-manual-review',
       detail: 'Background Items should be reviewed manually.',
@@ -193,12 +188,23 @@ describe('MainView', () => {
     expect(() => render(<MainView {...baseProps} app={null} summary={null} />)).not.toThrow();
   });
 
-  it('renders the settings permissions workspace with actions', () => {
-    render(<MainView {...baseProps} mode="settings" />);
+  it('renders the settings permissions workspace with actions', async () => {
+    const user = userEvent.setup();
+    const onRefreshPermissionSnapshot = vi.fn();
+
+    render(<MainView {...baseProps} mode="settings" onRefreshPermissionSnapshot={onRefreshPermissionSnapshot} />);
 
     expect(screen.getByText('Open Full Disk Access')).toBeInTheDocument();
     expect(screen.getByText('Retry check')).toBeInTheDocument();
     expect(screen.getByText('Protected folders are still hidden from the scan.')).toBeInTheDocument();
+
+    await user.click(screen.getByText('Accessibility'));
+
+    expect(screen.getAllByText('Granted').length).toBeGreaterThan(0);
+
+    await user.click(screen.getByText('Retry check'));
+
+    expect(onRefreshPermissionSnapshot).toHaveBeenCalledOnce();
   });
 
   it('renders the startup inventory workspace with live item details', async () => {
