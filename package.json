@@ -59,11 +59,11 @@
       "dist/**/*",
       "electron/**/*",
       "package.json",
-      "icon.icns"
+      "resources/icon.icns"
     ],
     "asar": true,
     "mac": {
-      "icon": "icon.icns",
+      "icon": "resources/icon.icns",
       "target": [
         "dmg"
       ],
