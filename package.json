@@ -58,10 +58,12 @@
     "files": [
       "dist/**/*",
       "electron/**/*",
-      "package.json"
+      "package.json",
+      "icon.icns"
     ],
     "asar": true,
     "mac": {
+      "icon": "icon.icns",
       "target": [
         "dmg"
       ],

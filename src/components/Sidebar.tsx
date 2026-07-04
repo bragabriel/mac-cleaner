@@ -106,7 +106,7 @@ export function Sidebar({mode, cleanupMode, onModeChange, onCleanupModeChange}: 
         <div className="border-t border-white/8 px-4 py-4">
           <div className="rounded-[18px] border border-white/8 bg-white/[0.04] px-4 py-4">
             <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/36">Star the project</p>
-            <p className="mt-3 text-sm leading-6 text-white/58">Mac Cleaner is a side project — an open-source experiment in clean macOS tooling. If it saved you a few clicks, drop a star. Found a bug or have an idea? Open a PR — contributions are welcome. ☆</p>
+            <p className="mt-3 text-sm leading-6 text-white/58">Mac Cleaner is an experimental macOS cleanup side project. Saved you a few clicks? Drop a star. Found a bug or have an idea? Open a PR — contributions are welcome. ☆</p>
           </div>
         </div>
       </div>
