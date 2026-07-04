@@ -136,6 +136,18 @@ async function statSafe(targetPath) {
   }
 }
 
+async function sizeBytesFor(targetPath, stats) {
+  if (!stats.isDirectory()) {
+    return stats.size;
+  }
+  try {
+    const { stdout } = await execFileAsync('du', ['-sk', targetPath]);
+    return parseInt(stdout.split('\t')[0], 10) * 1024;
+  } catch {
+    return stats.size;
+  }
+}
+
 async function findAppBundles(rootPath) {
   if (!(await pathExists(rootPath))) {
     return [];
@@ -171,7 +183,7 @@ async function listInstalledApps() {
       name: basenameWithoutExtension(appPath),
       appPath,
       bundleId: null,
-      sizeBytes: stats.size,
+      sizeBytes: await sizeBytesFor(appPath, stats),
       source: 'installed',
     });
   }
@@ -252,7 +264,7 @@ async function buildScanItem(targetPath, appName, terms, reasonOverride) {
         ? 'Installed app bundle selected for complete uninstall.'
         : 'Path name matches the selected app or one of its known identifiers.'),
     appName,
-    sizeBytes: stats.size,
+    sizeBytes: await sizeBytesFor(targetPath, stats),
     modifiedAt: stats.mtime.toISOString(),
     isDirectory: stats.isDirectory(),
     selected: true,
@@ -398,7 +410,7 @@ async function scanOrphanResidues(selectedRoots) {
           ? 'Candidate residue remains in a known app-support root even though the parent app is not installed.'
           : 'Entry looks app-specific but no parent app could be identified.',
         appName: guess,
-        sizeBytes: stats.size,
+        sizeBytes: await sizeBytesFor(targetPath, stats),
         modifiedAt: stats.mtime.toISOString(),
         isDirectory: stats.isDirectory(),
         selected: false,
@@ -443,7 +455,7 @@ async function scanSystemJunk(selectedRoots) {
         confidence: 'medium',
         reason: 'Generic cache or log entry inside a system-junk category.',
         appName: null,
-        sizeBytes: stats.size,
+        sizeBytes: await sizeBytesFor(targetPath, stats),
         modifiedAt: stats.mtime.toISOString(),
         isDirectory: stats.isDirectory(),
         selected: false,
