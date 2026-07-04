@@ -951,7 +951,7 @@ export function MainView({
   );
 
   return (
-    <main className="flex h-screen min-w-0 flex-1 flex-col overflow-hidden">
+    <main className="relative flex h-screen min-w-0 flex-1 flex-col overflow-hidden">
       <header className="border-b border-black/6 bg-white/72 px-5 py-4 backdrop-blur lg:px-6">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex min-w-0 items-center gap-3">
@@ -1428,6 +1428,26 @@ export function MainView({
                 <Settings className="h-4 w-4" />
                 Open Settings
               </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {scanStatus.scanning || scanStatus.removing ? (
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30 flex justify-center px-3 pb-3 lg:px-4 lg:pb-4">
+          <div className="w-full max-w-md rounded-2xl border border-black/8 bg-white/95 px-4 py-3 shadow-[0_12px_40px_rgba(17,18,21,0.18)] backdrop-blur">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-2">
+                <Loader2 className="h-4 w-4 shrink-0 animate-spin text-[#7263FF]" />
+                <p className="truncate text-xs font-semibold text-[#111215]">{scanStatus.progressLabel || (scanStatus.removing ? 'Removing...' : 'Scanning...')}</p>
+              </div>
+              <span className="shrink-0 text-xs font-semibold text-[#747785]">{scanStatus.progress > 0 ? `${Math.round(scanStatus.progress)}%` : null}</span>
+            </div>
+            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-[#EEEAFB]">
+              <div
+                className="h-full rounded-full bg-[#7263FF] transition-all duration-300 ease-out"
+                style={{width: `${scanStatus.progress}%`}}
+              />
             </div>
           </div>
         </div>
