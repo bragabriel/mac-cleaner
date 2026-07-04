@@ -29,6 +29,30 @@ function displayRoot(root) {
   return root.startsWith(HOME) ? `~${root.slice(HOME.length)}` : root;
 }
 
+function resolveHome(targetPath) {
+  if (targetPath === '~') {
+    return HOME;
+  }
+  if (targetPath.startsWith('~/')) {
+    return path.join(HOME, targetPath.slice(2));
+  }
+  return targetPath;
+}
+
+async function getDirSizes(paths) {
+  const results = [];
+  for (const targetPath of paths) {
+    const resolved = resolveHome(targetPath);
+    const stats = await statSafe(resolved);
+    if (!stats) {
+      results.push({path: targetPath, sizeBytes: 0});
+      continue;
+    }
+    results.push({path: targetPath, sizeBytes: await sizeBytesFor(resolved, stats)});
+  }
+  return results;
+}
+
 function filterRootEntries(entries, selectedRoots) {
   if (!Array.isArray(selectedRoots) || selectedRoots.length === 0) {
     return entries;
@@ -508,4 +532,5 @@ module.exports = {
   scanAppResidues,
   scanOrphanResidues,
   scanSystemJunk,
+  getDirSizes,
 };

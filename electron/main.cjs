@@ -3,7 +3,7 @@ const path = require('node:path');
 const { execFile } = require('node:child_process');
 const { promisify } = require('node:util');
 const { app, BrowserWindow, ipcMain, nativeImage, shell } = require('electron');
-const { listInstalledApps, removeItems, scanAppResidues, scanOrphanResidues, scanSystemJunk } = require('./service.cjs');
+const { listInstalledApps, removeItems, scanAppResidues, scanOrphanResidues, scanSystemJunk, getDirSizes } = require('./service.cjs');
 const { listInstalledPackages, listOutdatedPackages, upgradePackage } = require('./homebrew/services.cjs');
 const { getPermissionSnapshot, openSystemSettingsTarget } = require('./permissions/checks.cjs');
 
@@ -136,6 +136,7 @@ app.whenReady().then(() => {
   ipcMain.handle('brew:list-installed', async () => listInstalledPackages());
   ipcMain.handle('brew:outdated', async () => listOutdatedPackages());
   ipcMain.handle('brew:upgrade', async (_event, name) => upgradePackage(name));
+  ipcMain.handle('paths:sizes', async (_event, paths) => getDirSizes(paths));
 
   createWindow();
 

@@ -135,6 +135,7 @@ export interface DesktopApi {
   listBrewPackages?: () => Promise<BrewPackageResult>;
   listBrewOutdated?: () => Promise<BrewOutdatedResult>;
   upgradeBrewPackage?: (name: string) => Promise<BrewUpgradeResult>;
+  getDirSizes?: (paths: string[]) => Promise<Array<{path: string; sizeBytes: number}>>;
 }
 
 declare global {

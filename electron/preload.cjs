@@ -13,4 +13,5 @@ contextBridge.exposeInMainWorld('macCleaner', {
   listBrewPackages: () => ipcRenderer.invoke('brew:list-installed'),
   listBrewOutdated: () => ipcRenderer.invoke('brew:outdated'),
   upgradeBrewPackage: (name) => ipcRenderer.invoke('brew:upgrade', name),
+  getDirSizes: (paths) => ipcRenderer.invoke('paths:sizes', paths),
 });

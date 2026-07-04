@@ -498,6 +498,7 @@ export function MainView({
   const [selectedSettingId, setSelectedSettingId] = useState<string | null>(settingsEntries[0]?.id ?? null);
   const [selectedResultId, setSelectedResultId] = useState<string | null>(null);
   const [selectedCleanupRoots, setSelectedCleanupRoots] = useState<string[]>([]);
+  const [rootSizes, setRootSizes] = useState<Map<string, number>>(new Map());
 
   useEffect(() => {
     setSelectedResultId(summary?.items[0]?.id ?? null);
@@ -532,6 +533,32 @@ export function MainView({
   useEffect(() => {
     setSelectedCleanupRoots(selectedCleanup.roots);
   }, [selectedCleanup.id]);
+
+  useEffect(() => {
+    if (mode !== 'cleanup') {
+      return;
+    }
+
+    let active = true;
+    const fetchRootSizes = async () => {
+      try {
+        const sizes = window.macCleaner?.getDirSizes ? await window.macCleaner.getDirSizes(selectedCleanup.roots) : [];
+        if (!active) {
+          return;
+        }
+        setRootSizes(new Map(sizes.map((entry) => [entry.path, entry.sizeBytes])));
+      } catch {
+        if (active) {
+          setRootSizes(new Map());
+        }
+      }
+    };
+
+    void fetchRootSizes();
+    return () => {
+      active = false;
+    };
+  }, [mode, selectedCleanup.id, selectedCleanup.roots]);
 
   useEffect(() => {
     if (mode !== 'brew') {
@@ -877,24 +904,31 @@ export function MainView({
               </button>
             </div>
             <div className="mt-3 grid max-h-[280px] gap-2 overflow-y-auto pr-1 2xl:max-h-none 2xl:grid-cols-2 2xl:overflow-visible 2xl:pr-0">
-              {selectedCleanup.roots.map((root) => (
-                <label
-                  key={root}
-                  className="flex items-start gap-3 rounded-2xl bg-[#FAFAFC] px-3 py-3 text-sm text-[#111215]"
-                >
-                  <input
-                    type="checkbox"
-                    checked={activeCleanupRoots.includes(root)}
-                    onChange={(event) => {
-                      setSelectedCleanupRoots((current) =>
-                        event.target.checked ? [...current, root] : current.filter((item) => item !== root),
-                      );
-                    }}
-                    className="mt-0.5 h-4 w-4 shrink-0 rounded border-black/20 accent-[#7263FF]"
-                  />
-                  <span className="min-w-0 break-all">{root}</span>
-                </label>
-              ))}
+              {selectedCleanup.roots.map((root) => {
+                const size = rootSizes.get(root);
+                const hasSize = size !== undefined && size > 0;
+                return (
+                  <label
+                    key={root}
+                    className="flex items-start gap-3 rounded-2xl bg-[#FAFAFC] px-3 py-3 text-sm text-[#111215]"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={activeCleanupRoots.includes(root)}
+                      onChange={(event) => {
+                        setSelectedCleanupRoots((current) =>
+                          event.target.checked ? [...current, root] : current.filter((item) => item !== root),
+                        );
+                      }}
+                      className="mt-0.5 h-4 w-4 shrink-0 rounded border-black/20 accent-[#7263FF]"
+                    />
+                    <span className="min-w-0 flex-1 break-all">{root}</span>
+                    {hasSize ? (
+                      <span className="shrink-0 text-xs font-semibold text-[#747785]">{formatBytes(size)}</span>
+                    ) : null}
+                  </label>
+                );
+              })}
             </div>
           </div>
           <div className="grid content-start items-start gap-3">
