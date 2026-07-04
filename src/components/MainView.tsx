@@ -949,7 +949,7 @@ export function MainView({
               href="https://github.com/bragabriel/mac-cleaner"
               target="_blank"
               rel="noreferrer"
-              className="rounded-full border border-black/8 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#747785] transition-all duration-200 hover:border-black/14 hover:bg-[#F4F4F8] hover:text-[#ca8a04] hover:scale-105"
+              className="rounded-full border border-black/8 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#747785] transition-all duration-200 hover:border-[#ca8a04] hover:text-[#ca8a04] hover:scale-105"
             >
               Give it a Star
             </a>
