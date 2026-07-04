@@ -62,6 +62,10 @@
       "resources/icon.icns"
     ],
     "asar": true,
+    "dmg": {
+      "background": "resources/background.png",
+      "icon": null
+    },
     "mac": {
       "icon": "resources/icon.icns",
       "target": [
