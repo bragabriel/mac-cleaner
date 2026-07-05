@@ -3,6 +3,7 @@ const path = require('node:path');
 const os = require('node:os');
 const { execFile } = require('node:child_process');
 const { promisify } = require('node:util');
+const { shell } = require('electron');
 
 const execFileAsync = promisify(execFile);
 
@@ -513,7 +514,7 @@ async function removeItems(targetPaths) {
     }
 
     try {
-      await fs.rm(targetPath, { recursive: true, force: true });
+      await shell.trashItem(targetPath);
       removedPaths.push(targetPath);
     } catch (error) {
       failedPaths.push({
