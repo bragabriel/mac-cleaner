@@ -5,7 +5,7 @@ contextBridge.exposeInMainWorld('macCleaner', {
   scanApp: (appItem) => ipcRenderer.invoke('scan:app', appItem),
   scanOrphans: (roots) => ipcRenderer.invoke('scan:orphans', roots),
   scanSystemJunk: (roots) => ipcRenderer.invoke('scan:system-junk', roots),
-  removeItems: (targetPaths) => ipcRenderer.invoke('items:remove', targetPaths),
+  removePaths: (targetPaths) => ipcRenderer.invoke('items:remove', targetPaths),
   revealPath: (targetPath) => ipcRenderer.invoke('finder:reveal', targetPath),
   openPath: (targetPath) => ipcRenderer.invoke('item:open', targetPath),
   openSystemSettings: (target) => ipcRenderer.invoke('permissions:open-settings', target),

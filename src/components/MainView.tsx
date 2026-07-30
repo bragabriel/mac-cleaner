@@ -125,7 +125,7 @@ const homeEntries: Array<{
   {
     id: 'home-uninstall',
     title: 'Uninstall Apps',
-    subtitle: 'Inspect installed apps, open one detail column, then continue the flow vertically.',
+    subtitle: 'Remove an app together with the files it leaves behind.',
     mode: 'uninstall',
     icon: AppWindowMac,
   },
@@ -155,7 +155,7 @@ const homeEntries: Array<{
   {
     id: 'home-settings',
     title: 'Settings',
-    subtitle: 'Permissions, scan behavior, and safety defaults in the same final column pattern.',
+    subtitle: 'Permissions and safety defaults for scans and cleanup.',
     mode: 'settings',
     icon: Settings,
   },
@@ -265,8 +265,8 @@ function formatBytes(bytes: number) {
   }
 
   const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
-  const value = bytes / 1024 ** index;
+  const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1000)), units.length - 1);
+  const value = bytes / 1000 ** index;
   return `${value >= 10 || index === 0 ? value.toFixed(0) : value.toFixed(1)} ${units[index]}`;
 }
 
@@ -337,7 +337,8 @@ function Panel({
   return (
     <section
       className={[
-        'flex h-full min-h-0 flex-col overflow-hidden rounded-[28px] border border-black/6 bg-white',
+        'flex h-full min-h-0 flex-col overflow-hidden',
+        header ? 'rounded-[28px] border border-black/6 bg-white' : '',
         wide ? 'min-w-0' : '',
         className ?? '',
       ].join(' ')}
@@ -408,25 +409,25 @@ function DetailCard({
 }: {
   icon: ReactNode;
   title: string;
-  subtitle: string;
+  subtitle?: string;
   rightSlot?: ReactNode;
   children: ReactNode;
 }) {
   return (
     <section className="rounded-[26px] border border-black/6 bg-[#FAFAFC] p-5 lg:p-6">
       <div className="flex flex-col gap-4">
-        <div className="flex min-w-0 items-start justify-between gap-4">
-          <div className="flex min-w-0 items-center gap-3">
+        <div className="flex min-w-0 flex-wrap items-start justify-between gap-x-4 gap-y-3">
+          <div className="flex min-w-0 flex-1 basis-[180px] items-center gap-3">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#F1EEFF] text-[#7263FF]">
               {icon}
             </div>
             <div className="min-w-0">
-              <h3 className="text-xl font-semibold text-[#111215]">{title}</h3>
+              <h3 className="break-words text-xl font-semibold text-[#111215]">{title}</h3>
             </div>
           </div>
           {rightSlot ? <div className="shrink-0">{rightSlot}</div> : null}
         </div>
-        <p className="text-sm leading-7 text-[#747785]">{subtitle}</p>
+        {subtitle ? <p className="text-sm leading-7 text-[#747785]">{subtitle}</p> : null}
       </div>
       <div className="mt-5">{children}</div>
     </section>
@@ -505,6 +506,9 @@ export function MainView({
   }, [summary]);
 
   const selectedCleanup = cleanupEntries.find((entry) => entry.id === cleanupMode) ?? cleanupEntries[0];
+
+  const hasThirdColumn =
+    mode === 'uninstall' ? Boolean(app && summary) : mode === 'cleanup' ? Boolean(summary) : false;
   const activeCleanupRoots = selectedCleanupRoots;
   const permissionStateByTarget = useMemo(
     () => new Map((permissionSnapshot?.permissions ?? []).map((permission) => [permission.target, permission])),
@@ -689,7 +693,7 @@ export function MainView({
           <div className="grid gap-4 2xl:grid-cols-2">
             <div className="rounded-[24px] border border-black/6 bg-white px-4 py-4">
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">Package</p>
-              <p className="mt-3 break-all text-sm leading-7 text-[#111215]">{selectedBrewPackage.name}</p>
+              <p className="mt-3 wrap-anywhere text-sm leading-7 text-[#111215]">{selectedBrewPackage.name}</p>
             </div>
             {selectedBrewOutdated ? (
               <>
@@ -723,13 +727,12 @@ export function MainView({
       <DetailCard
         icon={<AppIcon app={app} />}
         title={app.name}
-        subtitle="Details, storage, and actions."
         rightSlot={<InfoChip label="App Size" value={formatBytes(app.sizeBytes)} />}
       >
         <div className="grid items-start gap-4 2xl:grid-cols-[minmax(0,1.3fr)_minmax(220px,0.7fr)]">
           <div className="rounded-2xl bg-white px-4 py-4">
             <p className="text-[11px] uppercase tracking-[0.18em] text-[#9EA2AE]">Installed path</p>
-            <p className="mt-2 break-all text-sm text-[#111215]">{app.appPath}</p>
+            <p className="mt-2 wrap-anywhere text-sm text-[#111215]">{app.appPath}</p>
             <p className="mt-2 text-sm text-[#747785]">{app.bundleId || 'Bundle ID unavailable'}</p>
           </div>
           <div className="grid content-start items-start gap-3 2xl:grid-cols-1">
@@ -765,31 +768,33 @@ export function MainView({
     </div>
   ) : (
     <div className="rounded-[26px] border border-dashed border-black/6 bg-white px-5 py-6 text-sm leading-7 text-[#747785]">
-      Select an app from the first column to open the final workspace column.
+      Select an app to see its details.
     </div>
   );
 
   const scanResultsColumn = summary ? (
     <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-[26px] border border-black/6 bg-white">
-      <div className="grid grid-cols-2 items-start gap-x-5 gap-y-4 border-b border-black/6 px-4 py-4 lg:px-5 2xl:grid-cols-[minmax(0,1fr)_auto_auto_auto] 2xl:gap-x-8">
-        <div className="min-w-0 2xl:order-1">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">Scan results</p>
-                <p className="mt-1 text-sm text-[#747785]">{summaryItems.length} leftovers found</p>
-        </div>
-        <button
-          type="button"
-          onClick={onToggleAll}
-          className="justify-self-end text-sm font-semibold text-[#7263FF] transition hover:text-[#5748E5] 2xl:order-4"
-        >
-                {selectedCount === summaryItems.length ? 'Unselect all' : 'Select all'}
-        </button>
-        <div className="min-w-0 2xl:order-2">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">Selected</p>
-            <p className="mt-1 text-sm font-semibold text-[#111215]">{selectedCount} of {summaryItems.length}</p>
-        </div>
-        <div className="min-w-0 justify-self-end text-right 2xl:order-3 2xl:justify-self-start 2xl:text-left">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">Selected size</p>
-            <p className="mt-1 text-sm font-semibold text-[#111215]">{formatBytes(selectedBytes)}</p>
+      <div className="@container border-b border-black/6 px-4 py-4 lg:px-5">
+        <div className="grid grid-cols-1 items-start gap-x-5 gap-y-4 @xs:grid-cols-2 @xl:grid-cols-[minmax(0,1fr)_auto_auto_auto] @xl:gap-x-8">
+          <div className="min-w-0 @xl:order-1">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">Scan results</p>
+                  <p className="mt-1 text-sm text-[#747785]">{summaryItems.length} leftovers found</p>
+          </div>
+          <button
+            type="button"
+            onClick={onToggleAll}
+            className="justify-self-start text-sm font-semibold text-[#7263FF] transition hover:text-[#5748E5] @xs:justify-self-end @xl:order-4"
+          >
+                  {selectedCount === summaryItems.length ? 'Unselect all' : 'Select all'}
+          </button>
+          <div className="min-w-0 @xl:order-2">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">Selected</p>
+              <p className="mt-1 text-sm font-semibold text-[#111215]">{selectedCount} of {summaryItems.length}</p>
+          </div>
+          <div className="min-w-0 @xs:justify-self-end @xs:text-right @xl:order-3 @xl:justify-self-start @xl:text-left">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9EA2AE]">Selected size</p>
+              <p className="mt-1 text-sm font-semibold text-[#111215]">{formatBytes(selectedBytes)}</p>
+          </div>
         </div>
       </div>
 
@@ -810,7 +815,7 @@ export function MainView({
               item.id === selectedResult?.id ? 'bg-[#F4F1FF]' : 'bg-white hover:bg-[#F8F7FB]'
             }`}
           >
-            <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3">
+            <div className="flex items-start gap-3">
               <input
                 type="checkbox"
                 checked={item.selected}
@@ -819,31 +824,35 @@ export function MainView({
                   onToggleItem(item.id);
                 }}
                 onClick={(event) => event.stopPropagation()}
-                className="mt-1 h-4 w-4 rounded border-black/20 accent-[#7263FF]"
+                className="mt-1 h-4 w-4 shrink-0 rounded border-black/20 accent-[#7263FF]"
               />
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-[#111215]">{item.label}</p>
-                <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-[#9EA2AE]">{item.category}</p>
-              </div>
-              <div className="flex shrink-0 items-center gap-2 self-center">
-                <span className="inline-flex h-7 min-w-[58px] items-center justify-center whitespace-nowrap border border-black/6 bg-white px-2 text-xs text-[#747785]">
-                  {formatBytes(item.sizeBytes)}
-                </span>
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    void navigator.clipboard.writeText(item.path);
-                  }}
-                  className="inline-flex h-7 items-center gap-1 border border-black/6 bg-white px-2 text-[11px] text-[#747785] transition hover:border-[#7263FF]/40 hover:text-[#111215]"
-                  title={`Copy path for ${item.label}`}
-                >
-                  <Copy className="h-3 w-3" />
-                  <span>Copy path</span>
-                </button>
+              <div className="flex min-w-0 flex-1 flex-wrap items-start justify-between gap-x-3 gap-y-2">
+                <div className="min-w-0 flex-1 basis-[140px]">
+                  <p className="break-words text-sm font-semibold text-[#111215]">{item.label}</p>
+                  <p className="mt-1 break-words text-[10px] uppercase tracking-[0.18em] text-[#9EA2AE]">
+                    {item.category}
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <span className="inline-flex h-7 min-w-[58px] items-center justify-center whitespace-nowrap border border-black/6 bg-white px-2 text-xs text-[#747785]">
+                    {formatBytes(item.sizeBytes)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      void navigator.clipboard.writeText(item.path);
+                    }}
+                    className="inline-flex h-7 items-center gap-1 border border-black/6 bg-white px-2 text-[11px] text-[#747785] transition hover:border-[#7263FF]/40 hover:text-[#111215]"
+                    title={`Copy path for ${item.label}`}
+                  >
+                    <Copy className="h-3 w-3" />
+                    <span>Copy path</span>
+                  </button>
+                </div>
               </div>
             </div>
-            <p className="mt-2 break-all text-xs text-[#747785] pl-7">{item.path}</p>
+            <p className="mt-2 wrap-anywhere text-xs text-[#747785] pl-7">{item.path}</p>
           </div>
         ))}
       </div>
@@ -871,7 +880,7 @@ export function MainView({
       scanResultsColumn
     ) : (
       <div className="flex h-full items-center justify-center rounded-[26px] border border-dashed border-black/6 bg-white px-6 text-center text-sm leading-7 text-[#747785]">
-        Run the scan to open the right-side results column.
+        Run a scan to see what can be removed.
       </div>
     )
   ) : null;
@@ -879,7 +888,7 @@ export function MainView({
   const cleanupThirdColumn =
     scanResultsColumn || (
       <div className="flex h-full items-center justify-center rounded-[26px] border border-dashed border-black/6 bg-white px-6 text-center text-sm leading-7 text-[#747785]">
-        Run a cleanup scan to open the right-side results column.
+        Run a scan to see what can be removed.
       </div>
     );
 
@@ -889,7 +898,6 @@ export function MainView({
       <DetailCard
         icon={<selectedCleanup.icon className="h-6 w-6" />}
         title={selectedCleanup.title}
-        subtitle="Quick overview of the selected cleanup profile and its scan targets."
       >
         <div className="grid items-start gap-4">
           <div className="rounded-2xl bg-white px-4 py-4">
@@ -900,7 +908,7 @@ export function MainView({
                 onClick={() => setSelectedCleanupRoots(activeCleanupRoots.length === selectedCleanup.roots.length ? [] : [...selectedCleanup.roots])}
                 className="text-[11px] font-medium text-[#7263FF] hover:text-[#5B4BD4] transition-colors"
               >
-                {activeCleanupRoots.length === selectedCleanup.roots.length ? 'Desmarcar todos' : 'Marcar todos'}
+                {activeCleanupRoots.length === selectedCleanup.roots.length ? 'Unselect all' : 'Select all'}
               </button>
             </div>
             <div className="mt-3 grid max-h-[280px] gap-2 overflow-y-auto pr-1 2xl:max-h-none 2xl:grid-cols-2 2xl:overflow-visible 2xl:pr-0">
@@ -922,7 +930,7 @@ export function MainView({
                       }}
                       className="mt-0.5 h-4 w-4 shrink-0 rounded border-black/20 accent-[#7263FF]"
                     />
-                    <span className="min-w-0 flex-1 break-all">{root}</span>
+                    <span className="min-w-0 flex-1 break-words">{root}</span>
                     {hasSize ? (
                       <span className="shrink-0 text-xs font-semibold text-[#747785]">{formatBytes(size)}</span>
                     ) : null}
@@ -1065,11 +1073,15 @@ export function MainView({
           ) : (
             <div
               className={cn(
-                'grid h-full min-h-0 gap-3 p-3 lg:gap-4 lg:p-4',
+                'mx-auto grid h-full min-h-0 w-full max-w-[1680px] gap-3 p-3 lg:gap-4 lg:p-4',
                 mode === 'uninstall'
-                  ? 'md:grid-cols-[280px_minmax(260px,0.9fr)_minmax(280px,1fr)] 2xl:grid-cols-[minmax(260px,0.85fr)_minmax(320px,1.15fr)_minmax(320px,0.95fr)]'
+                  ? hasThirdColumn
+                    ? 'md:grid-cols-[280px_minmax(260px,0.9fr)_minmax(280px,1fr)] 2xl:grid-cols-[minmax(260px,0.85fr)_minmax(320px,1.15fr)_minmax(320px,0.95fr)]'
+                    : 'md:grid-cols-[280px_minmax(0,1fr)] 2xl:grid-cols-[minmax(260px,0.85fr)_minmax(0,1fr)]'
                   : mode === 'cleanup'
-                    ? 'md:grid-cols-[236px_minmax(320px,1.1fr)_minmax(280px,0.95fr)] 2xl:grid-cols-[240px_minmax(380px,1.2fr)_minmax(320px,0.9fr)]'
+                    ? hasThirdColumn
+                      ? 'md:grid-cols-[236px_minmax(320px,1.1fr)_minmax(280px,0.95fr)] 2xl:grid-cols-[240px_minmax(380px,1.2fr)_minmax(320px,0.9fr)]'
+                      : 'md:grid-cols-[236px_minmax(0,1fr)] 2xl:grid-cols-[240px_minmax(0,1fr)]'
                     : mode === 'brew'
                         ? 'md:grid-cols-[300px_minmax(0,1fr)] 2xl:grid-cols-[minmax(300px,0.72fr)_minmax(420px,1.28fr)]'
                         : 'md:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[minmax(300px,0.55fr)_minmax(0,1fr)]',
@@ -1112,12 +1124,12 @@ export function MainView({
                       rightMeta={(entry) => entry.sizeText}
                     />
                   </Panel>
-                  <Panel title={app ? app.name : 'App Workspace'} subtitle="Middle column for the selected app." wide header={false}>
+                  <Panel title={app ? app.name : 'App Workspace'} wide header={false}>
                     <div className="h-full min-h-0 overflow-hidden p-4 lg:p-5">{uninstallSecondColumn}</div>
                   </Panel>
                   {app && summary ? (
                     <div className="min-h-0 ">
-                      <Panel title={summary ? summary.title : 'Scan Results'} subtitle="Scanned items expand into this right-side column." wide header={false}>
+                      <Panel title={summary ? summary.title : 'Scan Results'} wide header={false}>
                         <div className="h-full min-h-0 overflow-hidden p-4 lg:p-5">{uninstallThirdColumn}</div>
                       </Panel>
                     </div>
@@ -1127,17 +1139,11 @@ export function MainView({
 
               {mode === 'cleanup' ? (
                 <>
-                  <Panel title="Cleanup Profiles" subtitle="Selected cleanup category." scroll>
+                  <Panel title="Cleanup Profiles" scroll>
                     <ListColumn
-                      entries={[
-                        {
-                          id: selectedCleanup.id,
-                          title: selectedCleanup.title,
-                          subtitle: selectedCleanup.subtitle,
-                        },
-                      ]}
+                      entries={cleanupEntries}
                       activeId={cleanupMode}
-                      onSelect={() => undefined}
+                      onSelect={(entry) => onCleanupModeChange(entry.id)}
                       wrapText
                     />
                   </Panel>
@@ -1151,7 +1157,7 @@ export function MainView({
                   </Panel>
                   {summary ? (
                     <div className="min-h-0">
-                      <Panel title={summary.title} subtitle="Cleanup scan results expand into this right-side column." wide header={false}>
+                      <Panel title={summary.title} wide header={false}>
                         <div className="h-full min-h-0 overflow-hidden p-4 lg:p-5">{cleanupThirdColumn}</div>
                       </Panel>
                     </div>
@@ -1228,7 +1234,6 @@ export function MainView({
                   </Panel>
                   <Panel
                     title={selectedSetting.title}
-                    subtitle="No additional right-side columns are created beyond this workspace."
                     wide
                     scroll
                     header={false}
@@ -1363,7 +1368,7 @@ export function MainView({
                 <div className="mt-3 space-y-2 text-sm text-rose-700">
                   {confirmState.failures.map((failure) => (
                     <div key={`${failure.path}-${failure.message}`} className="rounded-2xl bg-white/80 px-3 py-3">
-                      <p className="break-all font-medium">{failure.path}</p>
+                      <p className="wrap-anywhere font-medium">{failure.path}</p>
                       <p className="mt-1">{failure.message}</p>
                     </div>
                   ))}

@@ -162,18 +162,41 @@ describe('MainView', () => {
     expect(homeCards[4].textContent).toContain('Settings');
   });
 
-  it('keeps cleanup feature screens scoped to the selected mode', () => {
+  it('lists every cleanup profile and scopes the detail card to the selected one', () => {
     const {rerender} = render(<MainView {...baseProps} mode="cleanup" cleanupMode="residues" summary={null} />);
 
     expect(screen.getByText('Cleanup Profiles')).toBeInTheDocument();
     expect(screen.getAllByText('App Residues').length).toBeGreaterThan(0);
-    expect(screen.queryByText('System Junk')).not.toBeInTheDocument();
+    expect(screen.getAllByText('System Junk').length).toBeGreaterThan(0);
+    expect(screen.getByRole('heading', {name: 'App Residues'})).toBeInTheDocument();
 
     rerender(<MainView {...baseProps} mode="cleanup" cleanupMode="system" summary={null} />);
 
-    expect(screen.getByText('Cleanup Profiles')).toBeInTheDocument();
-    expect(screen.getAllByText('System Junk').length).toBeGreaterThan(0);
-    expect(screen.queryByText('App Residues')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', {name: 'System Junk'})).toBeInTheDocument();
+  });
+
+  it('switches cleanup profile when another one is picked from the list', async () => {
+    const user = userEvent.setup();
+    const onCleanupModeChange = vi.fn();
+
+    render(
+      <MainView
+        {...baseProps}
+        mode="cleanup"
+        cleanupMode="residues"
+        summary={null}
+        onCleanupModeChange={onCleanupModeChange}
+      />,
+    );
+
+    const systemJunkOption = screen
+      .getAllByText('System Junk')
+      .map((element) => element.closest('button'))
+      .find((button): button is HTMLButtonElement => button !== null);
+
+    await user.click(systemJunkOption!);
+
+    expect(onCleanupModeChange).toHaveBeenCalledWith('system');
   });
 
   it('passes selected cleanup roots to the scan action', async () => {
