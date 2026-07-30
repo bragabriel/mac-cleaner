@@ -155,14 +155,14 @@ async function pathExists(targetPath) {
 
 async function statSafe(targetPath) {
   try {
-    return await fs.stat(targetPath);
+    return await fs.lstat(targetPath);
   } catch {
     return null;
   }
 }
 
 async function sizeBytesFor(targetPath, stats) {
-  if (!stats.isDirectory()) {
+  if (stats.isSymbolicLink() || !stats.isDirectory()) {
     return stats.size;
   }
   try {
@@ -296,6 +296,12 @@ async function buildScanItem(targetPath, appName, terms, reasonOverride) {
   };
 }
 
+function dropNestedItems(items) {
+  const ancestors = items.filter((item) => item.isDirectory).map((item) => `${item.path}/`);
+
+  return items.filter((item) => !ancestors.some((prefix) => item.path.startsWith(prefix)));
+}
+
 async function scanAppResidues(appItem) {
   const searchTerms = buildSearchTerms(appItem);
   const scannedRoots = [...APPLICATION_ROOTS, ...RESIDUE_ROOTS.map((entry) => entry.root)];
@@ -331,7 +337,7 @@ async function scanAppResidues(appItem) {
     title: appItem.name,
     subtitle: 'App bundle, logs, caches, preferences, hidden entries and related leftovers selected for complete uninstall.',
     app: appItem,
-    items: [...itemMap.values()],
+    items: dropNestedItems([...itemMap.values()]),
     scannedRoots,
     inaccessibleRoots,
   };
@@ -528,6 +534,7 @@ async function removeItems(targetPaths) {
 }
 
 module.exports = {
+  dropNestedItems,
   listInstalledApps,
   removeItems,
   scanAppResidues,
