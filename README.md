@@ -2,7 +2,9 @@
 
 # Mac Cleaner
 
-**Finds the digital junk your apps left behind — and lets you actually do something about it.**
+**Because apparently I needed another side project, I started building a Mac cleaner app.**
+
+*It finds the digital junk your apps left behind — and lets you actually do something about it.*
 
 [![CI](https://github.com/bragabriel/mac-cleaner/actions/workflows/ci.yml/badge.svg)](https://github.com/bragabriel/mac-cleaner/actions/workflows/ci.yml)
 [![Latest release](https://img.shields.io/github/v/release/bragabriel/mac-cleaner)](https://github.com/bragabriel/mac-cleaner/releases/latest)
@@ -18,6 +20,8 @@
 You install an app, use it for two weeks, then forget it exists. Months later you find its icon in Launchpad and its config files silently hoarding disk space across seven Library folders. Mac Cleaner finds all of it.
 
 Built as an AI-assisted development experiment. Turns out I needed a Mac cleaner more than I needed sleep.
+
+Fair warning: this is a side project, not a Serious Open Source Product™. There's no roadmap, no support contract, and no plan beyond "it scratches my itch." It's open source because there was no reason for it not to be. If it's useful to you too, great — that's a happy accident.
 
 ## Install
 
