@@ -1,0 +1,43 @@
+name: Bug report
+description: Something scanned wrong, deleted wrong, or refused to start
+labels: [bug]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What you expected versus what you got.
+    validations:
+      required: true
+
+  - type: input
+    id: path
+    attributes:
+      label: Path involved (if any)
+      description: If a scan produced a wrong result, the exact path is the most useful thing you can give us.
+      placeholder: ~/Library/Application Support/SomeApp
+
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+      placeholder: "15.2 (Apple Silicon)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install
+    attributes:
+      label: How did you install it?
+      options:
+        - DMG from Releases
+        - From source (npm run dev:desktop)
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Console output
+      description: Anything from the terminal or DevTools console. Automatically formatted as code.
+      render: shell

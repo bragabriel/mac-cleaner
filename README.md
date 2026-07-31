@@ -1,16 +1,47 @@
+<div align="center">
+
 # Mac Cleaner
 
-Open source macOS utility that finds the digital junk your apps left behind — and lets you actually do something about it.
+**Finds the digital junk your apps left behind — and lets you actually do something about it.**
 
-Built as an AI-assisted development experiment. Turns out I needed a Mac cleaner more than I needed sleep.
+[![CI](https://github.com/bragabriel/mac-cleaner/actions/workflows/ci.yml/badge.svg)](https://github.com/bragabriel/mac-cleaner/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/bragabriel/mac-cleaner)](https://github.com/bragabriel/mac-cleaner/releases/latest)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-macOS%20(Apple%20Silicon)-lightgrey)](https://github.com/bragabriel/mac-cleaner/releases/latest)
 
-## What it does
+<img src="assets/screenshots/home.png" alt="Mac Cleaner home screen showing the Uninstall Apps, App Residues, System Junk, Brew Packages and Settings sections" width="900">
+
+</div>
+
+---
 
 You install an app, use it for two weeks, then forget it exists. Months later you find its icon in Launchpad and its config files silently hoarding disk space across seven Library folders. Mac Cleaner finds all of it.
 
+Built as an AI-assisted development experiment. Turns out I needed a Mac cleaner more than I needed sleep.
+
+## Install
+
+Download the latest `.dmg` from the [Releases page](https://github.com/bragabriel/mac-cleaner/releases/latest), open it, and drag **Mac Cleaner** into Applications.
+
+> **The app is not code-signed or notarized** (that needs a paid Apple Developer account), so macOS will refuse to open it on first launch. To get past Gatekeeper:
+>
+> ```bash
+> xattr -dr com.apple.quarantine "/Applications/Mac Cleaner.app"
+> ```
+>
+> Only do that for software you trust. If you'd rather not, [build it from source](#running-from-source) instead — same app, your own machine.
+
+Builds are **Apple Silicon (arm64) only** for now. On Intel Macs, run from source.
+
+## What it does
+
+### Uninstall Apps
+
+Browse installed applications, open one, and see everything it owns before deciding to remove it — the bundle plus every file it scattered around your system.
+
 ### App Residue Scanner
 
-Scan any installed app and see every file it scattered across your system:
+Scan any installed app and see every file it left behind:
 
 - **Application Support** — config files, databases, state
 - **Preferences** — `.plist` files haunting your system
@@ -31,56 +62,67 @@ Cache folders. Log directories. Saved state from apps you opened once in 2019. T
 
 ### Homebrew Package Management
 
-- List installed formulae
-- See which packages are outdated (with current vs. latest version)
-- Upgrade individual packages without leaving the app
+List installed formulae, see which ones are outdated (current vs. latest version), and upgrade individual packages without leaving the app.
 
-### Safe Removal
+### Settings
 
-Nothing gets deleted without your say-so. Mac Cleaner only allows removal from whitelisted paths (`/Applications`, `~/Applications`, and Library subdirectories), and every deletion requires confirmation.
+Grant the macOS permissions the scanners need, and set scan behavior and safety defaults.
 
-## How to run
+## Safety
 
-You need Node.js and npm installed. That's it.
+This app deletes things off your machine, so the rules are strict on purpose:
+
+- **Trash, not `rm`.** Every removal goes to the Trash, so you can put it back.
+- **Whitelisted paths only.** Removal is allowed from `/Applications`, `~/Applications`, and Library subdirectories. Nothing else is touchable.
+- **Nothing happens without confirmation.** Every deletion requires an explicit yes.
+
+## Running from source
+
+You need Node.js 20+ and npm. That's it.
 
 ```bash
-# Install dependencies
+git clone https://github.com/bragabriel/mac-cleaner.git
+cd mac-cleaner
 npm install
 
-# Run the real desktop app (Electron + filesystem access)
+# The real desktop app (Electron + filesystem access)
 npm run dev:desktop
 
-# Run just the frontend in a browser (mock data, no system access)
+# Just the frontend in a browser (mock data, no system access)
 npm run dev
 ```
 
-**Use `dev:desktop`** for the actual experience — app scanning, residue detection, real file operations.
-
-**Use `dev`** if you just want to tinker with the UI in a browser. It uses mock data and won't touch your system.
+Use **`dev:desktop`** for the actual experience — app scanning, residue detection, real file operations.
+Use **`dev`** if you just want to tinker with the UI. It uses mock data and won't touch your system.
 
 ### Other commands
 
 | Command | What it does |
 |---|---|
 | `npm run start:desktop` | Launch Electron without the dev server |
-| `npm run dist:mac` | Build a `.dmg` for distribution |
+| `npm run dist:mac` | Build a `.dmg` into `release/` |
 | `npm run lint` | Type-check the codebase |
 | `npm run test` | Run unit tests |
 | `npm run test:smoke` | End-to-end test against the real filesystem |
 
 ## Tech stack
 
-- React 19 + TypeScript + Vite 6
-- Electron 37 (desktop)
-- Tailwind CSS v4
-- Vitest for testing
+React 19 · TypeScript · Vite 6 · Electron 37 · Tailwind CSS v4 · Vitest
 
 ## Contributing
 
-Got an idea? Found a bug? Just want to prove you can write better code than an AI? Pull requests are open.
+Got an idea? Found a bug? Just want to prove you can write better code than an AI? Pull requests are open — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 Be creative, have fun, and don't break anything important.
 
+## License
+
+[MIT](LICENSE) © Gabriel Braga
+
 ---
 
-**If this saved you from manually digging through ~/Library, drop a ⭐ — it tells me someone actually uses this thing.**
+<div align="center">
+
+**If this saved you from manually digging through `~/Library`, drop a ⭐ — it tells me someone actually uses this thing.**
+
+</div>

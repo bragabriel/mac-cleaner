@@ -1,7 +1,7 @@
 {
   "name": "mac-cleaner",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
@@ -74,5 +74,16 @@
       "category": "public.app-category.utilities",
       "identity": null
     }
+  },
+  "description": "Open source macOS utility that finds the digital junk your apps left behind.",
+  "author": "Gabriel Braga",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bragabriel/mac-cleaner.git"
+  },
+  "homepage": "https://github.com/bragabriel/mac-cleaner",
+  "bugs": {
+    "url": "https://github.com/bragabriel/mac-cleaner/issues"
   }
 }

@@ -1,0 +1,18 @@
+name: Feature request
+description: Suggest something the cleaner should find, show, or do
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What's the problem?
+      description: What junk is it missing, or what's annoying about the current flow?
+    validations:
+      required: true
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like it to do?
+    validations:
+      required: true
