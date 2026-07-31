@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import type {
   AppItem,
+  BrewPackage,
   CleanupMode,
   PermissionSettingTarget,
   PermissionSnapshot,
@@ -65,7 +66,7 @@ interface MainViewProps {
   permissionModalOpen: boolean;
   onPermissionModalClose: () => void;
   onGoToSettings: () => void;
-  brewPackages: Array<{name: string; outdated: boolean}>;
+  brewPackages: BrewPackage[];
   brewOutdated: Array<{name: string; currentVersion: string; latestVersion: string}>;
   brewLoading: boolean;
   brewError: string | null;
