@@ -37,7 +37,9 @@ Builds are **Apple Silicon (arm64) only** for now. On Intel Macs, run from sourc
 
 ### Uninstall Apps
 
-Browse installed applications, open one, and see everything it owns before deciding to remove it — the bundle plus every file it scattered around your system.
+Browse installed applications, open one, and see everything it owns before deciding to remove it — the bundle plus every file it scattered around your system. Pick what goes and what stays, then remove the lot in one pass.
+
+<img src="assets/screenshots/uninstall-apps.png" alt="Uninstall Apps screen: an app selected from the list, its details in the middle column, and a scan result listing 26 leftovers totalling 2.5 GB with checkboxes" width="900">
 
 ### App Residue Scanner
 
