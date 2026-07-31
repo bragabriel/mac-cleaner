@@ -129,6 +129,8 @@ Be creative, have fun, and don't break anything important.
 
 <div align="center">
 
-**If this saved you from manually digging through `~/Library`, drop a ⭐ — it tells me someone actually uses this thing.**
+**If this saved you from manually digging through `~/Library`, drop a ⭐**
+
+**— it tells me someone actually uses this thing.**
 
 </div>
