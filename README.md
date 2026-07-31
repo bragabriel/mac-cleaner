@@ -2,9 +2,7 @@
 
 # Mac Cleaner
 
-**Because apparently I needed another side project, I started building a Mac cleaner app.**
-
-*It finds the digital junk your apps left behind — and lets you actually do something about it.*
+**Finds the digital junk your apps left behind — and lets you actually do something about it.**
 
 [![CI](https://github.com/bragabriel/mac-cleaner/actions/workflows/ci.yml/badge.svg)](https://github.com/bragabriel/mac-cleaner/actions/workflows/ci.yml)
 [![Latest release](https://img.shields.io/github/v/release/bragabriel/mac-cleaner)](https://github.com/bragabriel/mac-cleaner/releases/latest)
@@ -12,6 +10,8 @@
 [![Platform](https://img.shields.io/badge/platform-macOS%20(Apple%20Silicon)-lightgrey)](https://github.com/bragabriel/mac-cleaner/releases/latest)
 
 <img src="assets/screenshots/home.png" alt="Mac Cleaner home screen showing the Uninstall Apps, App Residues, System Junk, Brew Packages and Settings sections" width="900">
+
+*Because apparently I needed another side project, I started building a Mac cleaner app.*
 
 </div>
 
